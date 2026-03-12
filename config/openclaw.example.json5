@@ -1,0 +1,156 @@
+{
+  meta: {
+    lastTouchedVersion: "2026.3.11"
+  },
+
+  gateway: {
+    mode: "local",
+    bind: "loopback",
+    port: 19001,
+    auth: {
+      mode: "token",
+      token: "replace-with-local-gateway-token"
+    },
+    controlUi: {
+      enabled: true
+    }
+  },
+
+  agents: {
+    defaults: {
+      workspace: "/home/kevin/coding/openclaw/openclaw-workspace",
+      skipBootstrap: true
+    },
+    list: [
+      {
+        id: "jobops",
+        default: true,
+        name: "Job Ops Assistant",
+        workspace: "/home/kevin/coding/openclaw/openclaw-workspace",
+        tools: {
+          exec: {
+            host: "gateway",
+            security: "allowlist",
+            ask: "on-miss",
+            timeoutSec: 120,
+            safeBins: ["pnpm", "node"],
+            safeBinTrustedDirs: [
+              "/home/kevin/.local/share/fnm/node-versions/v22.15.0/installation/bin",
+              "/home/kevin/.local/share/pnpm"
+            ],
+            safeBinProfiles: {
+              pnpm: {
+                minPositional: 1
+              },
+              node: {
+                minPositional: 1
+              }
+            }
+          },
+          fs: {
+            workspaceOnly: true
+          }
+        },
+        sandbox: {
+          mode: "off"
+        }
+      }
+    ]
+  },
+
+  hooks: {
+    enabled: true,
+    path: "/hooks",
+    token: "replace-with-hook-token",
+    allowedAgentIds: ["jobops"],
+    presets: ["gmail"],
+    transformsDir: "job-ops-poc",
+    mappings: [
+      {
+        id: "gmail-job-alerts",
+        match: {
+          source: "gmail"
+        },
+        action: "agent",
+        agentId: "jobops",
+        deliver: false,
+        textTemplate: "A Gmail job alert arrived for the private job-ops workflow. Extract leads, persist canonical state to the external DB, and only surface shortlist-worthy jobs to Discord."
+      }
+    ],
+    gmail: {
+      label: "Job Alerts",
+      includeBody: true,
+      maxBytes: 200000,
+      renewEveryMinutes: 60,
+      serve: {
+        bind: "127.0.0.1",
+        port: 8788,
+        path: "/gmail/job-alerts"
+      },
+      tailscale: {
+        mode: "off"
+      }
+    }
+  },
+
+  channels: {
+    discord: {
+      token: "replace-with-discord-bot-token",
+      commands: {
+        native: true,
+        nativeSkills: true
+      },
+      dmPolicy: "allowlist",
+      allowFrom: ["123456789012345678"],
+      threadBindings: {
+        enabled: true,
+        idleHours: 72,
+        maxAgeHours: 336
+      },
+      guilds: {
+        "123456789012345679": {
+          slug: "job-ops-private",
+          channels: {
+            "123456789012345680": {
+              allow: true,
+              autoThread: true,
+              skills: [
+                "job-triage",
+                "job-review",
+                "job-approve",
+                "job-reject",
+                "job-note",
+                "resume-choice",
+                "job-apply-status",
+                "draft-packet"
+              ]
+            },
+            "123456789012345681": {
+              allow: true,
+              autoThread: true,
+              skills: [
+                "job-review",
+                "job-approve",
+                "job-reject",
+                "job-note",
+                "resume-choice",
+                "job-apply-status",
+                "draft-packet"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+
+  skills: {
+    load: {
+      watch: false
+    }
+  },
+
+  plugins: {
+    enabled: false
+  }
+}
