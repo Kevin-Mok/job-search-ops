@@ -1,0 +1,29 @@
+{
+  "name": "openclaw-job-ops-poc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "replay:fixtures": "pnpm build && node dist/src/cli.js replay-fixtures",
+    "review:state": "pnpm build && node dist/src/cli.js review-state",
+    "show:lead": "pnpm build && node dist/src/cli.js show-lead",
+    "approve:job": "pnpm build && node dist/src/cli.js approve",
+    "reject:job": "pnpm build && node dist/src/cli.js reject",
+    "note:job": "pnpm build && node dist/src/cli.js note",
+    "resume:job": "pnpm build && node dist/src/cli.js set-resume",
+    "apply-status:job": "pnpm build && node dist/src/cli.js apply-status",
+    "draft:packet": "pnpm build && node dist/src/cli.js draft-packet"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
