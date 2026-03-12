@@ -1,0 +1,8 @@
+{
+  "messageId": "indeed-2026-03-12-01",
+  "source": "indeed",
+  "receivedAt": "2026-03-12T09:15:00-05:00",
+  "from": "alerts@indeed.com",
+  "subject": "Indeed job alert: Python and support roles near Toronto",
+  "textBody": "Title: Junior Python Developer\nCompany: Maple Systems\nLocation: Toronto, ON\nWork model: Hybrid\nOffice location: 255 Consumers Road, North York, ON\nRemote eligibility: Canada\nSeniority: Junior\nEmployment type: Full-time\nSkills: Python, Django, AWS, PostgreSQL\nCompensation: CA$78,000 - CA$92,000\nApply URL: https://ca.indeed.com/viewjob?jk=indeed-maple-python\nDescription: Build customer-facing Django services on AWS for a Toronto product team.\n---\nTitle: IT Support Specialist\nCompany: Harbour Health\nLocation: Scarborough, ON\nWork model: On-site\nOffice location: 2867 Lawrence Avenue East, Toronto, ON\nSeniority: Mid-level\nEmployment type: Full-time\nSkills: Help Desk, Windows, Active Directory, SQL\nCompensation: CA$55,000 - CA$63,000\nApply URL: https://ca.indeed.com/viewjob?jk=indeed-harbour-support\nDescription: Support clinic staff, troubleshoot workstations, maintain ticketing metrics, and run SQL-based reporting."
+}
