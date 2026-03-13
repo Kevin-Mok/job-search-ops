@@ -1,14 +1,21 @@
 import path from "node:path";
+import { createInterface } from "node:readline/promises";
+import { Writable } from "node:stream";
 import { parseArgs } from "node:util";
 
 import { generateDraftPacket } from "./core/drafting.js";
+import { storeIndeedPassCredentials } from "./core/indeed-auth.js";
+import { getIndeedAlert, syncIndeedAlert } from "./core/indeed-sync.js";
 import { ingestFixtures } from "./core/pipeline.js";
 import { getResumeVariant } from "./core/resume-catalog.js";
+import { briefXNews, getXNewsFeed, listXNewsWatchlist, syncXNewsFeed } from "./core/x-news-sync.js";
 import { buildReviewBoard } from "./discord/review-plan.js";
 import { JobStore } from "./db/store.js";
 
 const DEFAULT_DB_PATH = path.resolve(process.cwd(), "data/job-ops.sqlite");
 const DEFAULT_FIXTURES_DIR = path.resolve(process.cwd(), "fixtures/email");
+const DEFAULT_INDEED_CONFIG_PATH = path.resolve(process.cwd(), "config/indeed-alerts.json");
+const DEFAULT_X_NEWS_CONFIG_PATH = path.resolve(process.cwd(), "config/twitter-news.json");
 
 function readCommonArgs(argv: string[]) {
   return parseArgs({
@@ -20,7 +27,13 @@ function readCommonArgs(argv: string[]) {
       reason: { type: "string" },
       resume: { type: "string" },
       status: { type: "string" },
-      "fixtures-dir": { type: "string" }
+      "fixtures-dir": { type: "string" },
+      config: { type: "string" },
+      "alert-id": { type: "string" },
+      username: { type: "string" },
+      list: { type: "string" },
+      hours: { type: "string" },
+      topic: { type: "string" }
     },
     allowPositionals: true
   });
@@ -38,8 +51,73 @@ function getFixturesDir(values: Record<string, string | boolean | undefined>): s
   return typeof values["fixtures-dir"] === "string" ? values["fixtures-dir"] : undefined;
 }
 
+function getAlertId(values: Record<string, string | boolean | undefined>): string | undefined {
+  return typeof values["alert-id"] === "string" ? values["alert-id"] : undefined;
+}
+
+function getUsername(values: Record<string, string | boolean | undefined>): string | undefined {
+  return typeof values.username === "string" ? values.username : undefined;
+}
+
+function getListId(values: Record<string, string | boolean | undefined>): string | undefined {
+  return typeof values.list === "string" ? values.list : undefined;
+}
+
+function getHours(values: Record<string, string | boolean | undefined>): number {
+  const raw = typeof values.hours === "string" ? Number(values.hours) : 24;
+  if (!Number.isFinite(raw) || raw <= 0) {
+    throw new Error("--hours must be a positive number");
+  }
+
+  return raw;
+}
+
+function getTopic(values: Record<string, string | boolean | undefined>): string | undefined {
+  return typeof values.topic === "string" ? values.topic : undefined;
+}
+
+function getConfigPath(values: Record<string, string | boolean | undefined>, defaultPath: string): string {
+  return typeof values.config === "string"
+    ? path.resolve(process.cwd(), values.config)
+    : defaultPath;
+}
+
 function print(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+}
+
+async function promptForSecret(prompt: string): Promise<string> {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    throw new Error("This command requires a TTY to read the password securely");
+  }
+
+  const mutedOutput = new Writable({
+    write(chunk, encoding, callback) {
+      if (!(mutedOutput as Writable & { muted?: boolean }).muted) {
+        process.stdout.write(chunk, encoding as BufferEncoding);
+      }
+      callback();
+    }
+  }) as Writable & { muted?: boolean };
+  const readline = createInterface({
+    input: process.stdin,
+    output: mutedOutput,
+    terminal: true
+  });
+
+  try {
+    process.stdout.write(prompt);
+    mutedOutput.muted = true;
+    const value = await readline.question("");
+    process.stdout.write("\n");
+    if (!value) {
+      throw new Error("Password cannot be empty");
+    }
+    return value;
+  } finally {
+    mutedOutput.muted = false;
+    readline.close();
+  }
 }
 
 function requireLead(store: JobStore, leadId?: string) {
@@ -146,6 +224,80 @@ async function main(): Promise<void> {
     case "draft-packet": {
       const lead = requireLead(store, getLeadId(parsed.values));
       print(lead.draftPacket);
+      return;
+    }
+    case "sync-indeed": {
+      const alertId = getAlertId(parsed.values);
+      if (!alertId) {
+        throw new Error("--alert-id is required");
+      }
+
+      const alert = getIndeedAlert(getConfigPath(parsed.values, DEFAULT_INDEED_CONFIG_PATH), alertId);
+      print(await syncIndeedAlert({ alert, store }));
+      return;
+    }
+    case "indeed-auth-set": {
+      const alertId = getAlertId(parsed.values);
+      if (!alertId) {
+        throw new Error("--alert-id is required");
+      }
+
+      const username = getUsername(parsed.values);
+      if (!username) {
+        throw new Error("--username is required");
+      }
+
+      const alert = getIndeedAlert(getConfigPath(parsed.values, DEFAULT_INDEED_CONFIG_PATH), alertId);
+      const password = await promptForSecret("Indeed password: ");
+      const auth = await storeIndeedPassCredentials({
+        alert,
+        username,
+        password
+      });
+      print({
+        alertId: alert.id,
+        mode: auth.mode,
+        usernameEntry: auth.usernameEntry,
+        passwordEntry: auth.passwordEntry,
+        stored: true
+      });
+      return;
+    }
+    case "sync-x-news": {
+      const listId = getListId(parsed.values);
+      if (!listId) {
+        throw new Error("--list is required");
+      }
+
+      const list = getXNewsFeed(getConfigPath(parsed.values, DEFAULT_X_NEWS_CONFIG_PATH), listId);
+      print(await syncXNewsFeed({ list, store }));
+      return;
+    }
+    case "brief-x-news": {
+      const listId = getListId(parsed.values);
+      if (!listId) {
+        throw new Error("--list is required");
+      }
+
+      const list = getXNewsFeed(getConfigPath(parsed.values, DEFAULT_X_NEWS_CONFIG_PATH), listId);
+      print(
+        briefXNews({
+          list,
+          store,
+          hours: getHours(parsed.values),
+          topicId: getTopic(parsed.values)
+        })
+      );
+      return;
+    }
+    case "watchlist-x-news": {
+      const listId = getListId(parsed.values);
+      if (!listId) {
+        throw new Error("--list is required");
+      }
+
+      const list = getXNewsFeed(getConfigPath(parsed.values, DEFAULT_X_NEWS_CONFIG_PATH), listId);
+      print(listXNewsWatchlist({ list, store }));
       return;
     }
     default:
