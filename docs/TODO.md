@@ -33,11 +33,23 @@ This file is the handoff and continuation checklist for the OpenClaw job-ops POC
   - [`src/discord/review-plan.ts`](/home/kevin/coding/openclaw/src/discord/review-plan.ts)
 - [x] Repo CLI added for deterministic review actions
   - [`src/cli.ts`](/home/kevin/coding/openclaw/src/cli.ts)
+- [x] Browser-backed Indeed sync added with blocked-page detection and Discord feed delivery audit
+  - [`src/core/indeed.ts`](/home/kevin/coding/openclaw/src/core/indeed.ts)
+  - [`src/core/indeed-sync.ts`](/home/kevin/coding/openclaw/src/core/indeed-sync.ts)
+  - [`src/core/openclaw-browser.ts`](/home/kevin/coding/openclaw/src/core/openclaw-browser.ts)
+  - [`config/indeed-alerts.example.json`](/home/kevin/coding/openclaw/config/indeed-alerts.example.json)
+- [x] Browser-backed X/Twitter AI news sync added with internal watchlist discovery and Discord delivery audit
+  - [`src/core/x-news.ts`](/home/kevin/coding/openclaw/src/core/x-news.ts)
+  - [`src/core/x-news-sync.ts`](/home/kevin/coding/openclaw/src/core/x-news-sync.ts)
+  - [`config/twitter-news.example.json`](/home/kevin/coding/openclaw/config/twitter-news.example.json)
 - [x] Critical workflow tests added and passing
   - [`tests/parsing.test.ts`](/home/kevin/coding/openclaw/tests/parsing.test.ts)
   - [`tests/location-policy.test.ts`](/home/kevin/coding/openclaw/tests/location-policy.test.ts)
   - [`tests/pipeline.test.ts`](/home/kevin/coding/openclaw/tests/pipeline.test.ts)
   - [`tests/review-state.test.ts`](/home/kevin/coding/openclaw/tests/review-state.test.ts)
+  - [`tests/indeed-sync.test.ts`](/home/kevin/coding/openclaw/tests/indeed-sync.test.ts)
+  - [`tests/openclaw-browser.test.ts`](/home/kevin/coding/openclaw/tests/openclaw-browser.test.ts)
+  - [`tests/x-news.test.ts`](/home/kevin/coding/openclaw/tests/x-news.test.ts)
 
 ## Verified
 
@@ -91,6 +103,10 @@ this into an exact OpenClaw config recommendation for both model and memorySearc
 
 ## Continue Next
 
+- [ ] High priority: run the live Indeed auth smoke test after seeding `pass` entries
+  - `pnpm indeed:auth:set -- --config config/indeed-alerts.json --alert-id call-centre-canada-remote --username <your-email>`
+  - `pnpm sync:indeed -- --db /tmp/indeed-smoke.sqlite --config config/indeed-alerts.json --alert-id call-centre-canada-remote`
+  - Verify the latest `sync_runs` row shows `pages_fetched > 0` and `cards_seen > 0`
 - [ ] Wire real Discord posting from the DB-backed review projection
   - Start from [`src/discord/review-plan.ts`](/home/kevin/coding/openclaw/src/discord/review-plan.ts)
   - Keep Discord as a projection of DB state, not the source of truth
@@ -103,6 +119,10 @@ this into an exact OpenClaw config recommendation for both model and memorySearc
   - Do this only if structured runtime DB access becomes necessary
 - [ ] Add richer post-survival fetch/enrichment for shortlisted leads only
   - Avoid browsing/fetching for obvious rejects
+  - Revisit the Indeed browser session strategy if live runs keep hitting Cloudflare interstitials
+- [ ] Improve X news discovery heuristics after real usage
+  - Tune topic keywords and preferred handles in [`config/twitter-news.example.json`](/home/kevin/coding/openclaw/config/twitter-news.example.json)
+  - Revisit the score threshold once live X engagement patterns are known
 - [ ] Add more fixtures for scammy/staffing/seniority edge cases
   - Extend [`fixtures/email/`](/home/kevin/coding/openclaw/fixtures/email)
   - Extend [`tests/`](/home/kevin/coding/openclaw/tests)
@@ -112,7 +132,7 @@ this into an exact OpenClaw config recommendation for both model and memorySearc
 - [ ] Auto-submitting applications
 - [ ] Reimplementing Discord outside OpenClaw
 - [ ] Multi-tenant abstractions
-- [ ] Browser automation for all leads before first-pass filtering
+- [ ] Full browser automation for all leads before first-pass filtering
 - [ ] Resume fact invention or unsupported claim generation
 
 ## Useful Entry Points
