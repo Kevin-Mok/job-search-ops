@@ -208,42 +208,47 @@ function buildIngestEvent(lead: ParsedLeadInput, record: JobLeadRecord): IngestE
   };
 }
 
-export function ingestFixtures(store: JobStore, fixturesDir: string): IngestSummary {
-  const fixtures = loadEmailFixtures(fixturesDir);
+export function ingestParsedLeads(store: JobStore, parsedLeads: ParsedLeadInput[]): IngestSummary {
   let created = 0;
   let updated = 0;
   let duplicatesMerged = 0;
-  const leads: JobLeadRecord[] = [];
-  let leadCandidates = 0;
+  const touchedLeadIds: string[] = [];
 
-  for (const { fixture, fixturePath } of fixtures) {
-    const parsedLeads = parseEmailFixture(fixture, fixturePath);
-    leadCandidates += parsedLeads.length;
+  for (const parsed of parsedLeads) {
+    const incoming = hydrateLeadRecord(parsed);
+    const existing = store.findLeadByDuplicateKey(incoming.duplicateKey);
+    const finalRecord = existing ? mergeLead(existing, incoming) : incoming;
 
-    for (const parsed of parsedLeads) {
-      const incoming = hydrateLeadRecord(parsed);
-      const existing = store.findLeadByDuplicateKey(incoming.duplicateKey);
-      const finalRecord = existing ? mergeLead(existing, incoming) : incoming;
-
-      if (existing) {
-        duplicatesMerged += 1;
-        updated += 1;
-      } else {
-        created += 1;
-      }
-
-      store.saveLead(finalRecord);
-      store.recordIngestEvent(buildIngestEvent(parsed, finalRecord));
-      leads.push(finalRecord);
+    if (existing) {
+      duplicatesMerged += 1;
+      updated += 1;
+    } else {
+      created += 1;
     }
+
+    store.saveLead(finalRecord);
+    store.recordIngestEvent(buildIngestEvent(parsed, finalRecord));
+    touchedLeadIds.push(finalRecord.leadId);
   }
 
   return {
-    fixturesProcessed: fixtures.length,
-    leadCandidates,
+    fixturesProcessed: 0,
+    leadCandidates: parsedLeads.length,
     created,
     updated,
     duplicatesMerged,
+    touchedLeadIds,
     leads: store.listLeads()
+  };
+}
+
+export function ingestFixtures(store: JobStore, fixturesDir: string): IngestSummary {
+  const fixtures = loadEmailFixtures(fixturesDir);
+  const parsedLeads = fixtures.flatMap(({ fixture, fixturePath }) => parseEmailFixture(fixture, fixturePath));
+  const summary = ingestParsedLeads(store, parsedLeads);
+
+  return {
+    ...summary,
+    fixturesProcessed: fixtures.length
   };
 }

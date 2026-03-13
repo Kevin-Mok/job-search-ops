@@ -1,0 +1,20 @@
+{
+  "alerts": [
+    {
+      "id": "call-centre-canada-remote",
+      "label": "call centre jobs in Canada",
+      "searchUrl": "https://ca.indeed.com/jobs?q=call+centre&l=Canada&from=subwaywebapp&sc=0kf%3Aattr%28DSQF7%29%3B&radius=50&vjk=dce1e0f08d112161",
+      "discordTarget": "channel:123456789012345680",
+      "enabled": true,
+      "maxPages": 5,
+      "browserProfile": "indeed-call-centre-canada-remote",
+      "pageTimeoutMs": 30000,
+      "challengeTimeoutMs": 20000,
+      "auth": {
+        "mode": "pass",
+        "usernameEntry": "openclaw/indeed/call-centre-canada-remote/username",
+        "passwordEntry": "openclaw/indeed/call-centre-canada-remote/password"
+      }
+    }
+  ]
+}

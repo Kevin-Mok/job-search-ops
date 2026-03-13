@@ -4,11 +4,11 @@ import type { EmailFixture, LeadSource, ParsedLeadInput, Seniority, WorkModel } 
 
 const BLOCK_SEPARATOR = /\n---+\n/g;
 
-function normalizeText(value: string): string {
+export function normalizeText(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
 
-function inferWorkModel(value: string): WorkModel {
+export function inferWorkModel(value: string): WorkModel {
   const normalized = value.toLowerCase();
   if (normalized.includes("remote")) return "remote";
   if (normalized.includes("hybrid")) return "hybrid";
@@ -18,7 +18,7 @@ function inferWorkModel(value: string): WorkModel {
   return "unknown";
 }
 
-function inferSeniority(title: string, explicit?: string): Seniority {
+export function inferSeniority(title: string, explicit?: string): Seniority {
   const source = `${title} ${explicit ?? ""}`.toLowerCase();
   if (source.includes("entry")) return "entry";
   if (source.includes("junior") || source.includes("jr")) return "junior";
@@ -29,7 +29,7 @@ function inferSeniority(title: string, explicit?: string): Seniority {
   return "unknown";
 }
 
-function parseCompensation(input?: string): Pick<
+export function parseCompensation(input?: string): Pick<
   ParsedLeadInput,
   "compensationText" | "compensationCurrency" | "compensationMin" | "compensationMax"
 > {
@@ -50,7 +50,7 @@ function parseCompensation(input?: string): Pick<
   };
 }
 
-function splitSkills(value?: string): string[] {
+export function splitSkills(value?: string): string[] {
   if (!value) return [];
   return value
     .split(/[;,]/g)
@@ -58,7 +58,7 @@ function splitSkills(value?: string): string[] {
     .filter(Boolean);
 }
 
-function normalizeUrl(url: string): string {
+export function normalizeUrl(url: string): string {
   try {
     const parsed = new URL(url.trim());
     parsed.searchParams.delete("trk");

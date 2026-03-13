@@ -167,7 +167,314 @@ export interface IngestSummary {
   created: number;
   updated: number;
   duplicatesMerged: number;
+  touchedLeadIds: string[];
   leads: JobLeadRecord[];
+}
+
+export interface IndeedAlertConfig {
+  id: string;
+  label: string;
+  searchUrl: string;
+  discordTarget: string;
+  enabled: boolean;
+  maxPages: number;
+  browserProfile?: string;
+  pageTimeoutMs?: number;
+  challengeTimeoutMs?: number;
+  auth?: IndeedPassAuthConfig;
+}
+
+export interface IndeedAlertsConfig {
+  alerts: IndeedAlertConfig[];
+}
+
+export interface IndeedPassAuthConfig {
+  mode: "pass";
+  usernameEntry: string;
+  passwordEntry: string;
+}
+
+export interface IndeedAuthCredentials {
+  username: string;
+  password: string;
+}
+
+export interface XNewsTopicConfig {
+  id: string;
+  label: string;
+  keywords: string[];
+  preferredHandles: string[];
+}
+
+export interface XNewsDiscoveryConfig {
+  autoAdd: boolean;
+  maxNewAccountsPerRun: number;
+  minDiscoveryScore: number;
+}
+
+export interface XNewsListConfig {
+  id: string;
+  label: string;
+  seedHandle: string;
+  discordTarget: string;
+  enabled: boolean;
+  browserProfile: string;
+  pollEveryMinutes: number;
+  maxTrackedAccounts: number;
+  maxPostsPerAccount: number;
+  bootstrapHandles: string[];
+  pageTimeoutMs: number;
+  challengeTimeoutMs: number;
+  topics: XNewsTopicConfig[];
+  discovery: XNewsDiscoveryConfig;
+}
+
+export interface XNewsConfig {
+  lists: XNewsListConfig[];
+}
+
+export interface XFollowingAccountSnapshot {
+  handle: string;
+  displayName: string;
+  profileUrl: string;
+  bio?: string;
+  verified: boolean;
+}
+
+export interface XTimelinePostSnapshot {
+  postId: string;
+  authorHandle: string;
+  authorDisplayName: string;
+  authorProfileUrl: string;
+  postUrl: string;
+  postedAt: string;
+  text: string;
+  normalizedText: string;
+  quoteHandles: string[];
+  replyHandles: string[];
+  mentionHandles: string[];
+  likeCount: number;
+  repostCount: number;
+  replyCount: number;
+  viewCount?: number;
+  verified: boolean;
+}
+
+export type XNewsTrackedAccountSource = "seed_following" | "bootstrap" | "discovery";
+
+export interface XNewsTrackedAccountRecord {
+  accountId: string;
+  listId: string;
+  handle: string;
+  displayName: string;
+  profileUrl: string;
+  bio?: string;
+  verified: boolean;
+  source: XNewsTrackedAccountSource;
+  discoveryScore?: number;
+  topicIds: string[];
+  authorQualityScore: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  lastFetchedAt?: string;
+}
+
+export interface XNewsPostRecord {
+  postId: string;
+  listId: string;
+  authorHandle: string;
+  authorDisplayName: string;
+  authorProfileUrl: string;
+  postUrl: string;
+  postedAt: string;
+  text: string;
+  normalizedText: string;
+  quoteHandles: string[];
+  replyHandles: string[];
+  mentionHandles: string[];
+  likeCount: number;
+  repostCount: number;
+  replyCount: number;
+  viewCount?: number;
+  matchedTopicIds: string[];
+  topicRelevanceScore: number;
+  authorQualityScore: number;
+  engagementScore: number;
+  freshnessScore: number;
+  score: number;
+  ingestedAt: string;
+  updatedAt: string;
+}
+
+export interface XNewsSyncRunRecord {
+  runId: string;
+  listId: string;
+  status: SyncRunStatus;
+  startedAt: string;
+  completedAt?: string;
+  seedAccountsSeen: number;
+  trackedAccountsCrawled: number;
+  postsSeen: number;
+  postsStored: number;
+  accountsAdded: number;
+  deliveriesAttempted: number;
+  deliveriesSucceeded: number;
+  deliveriesFailed: number;
+  errorMessage?: string;
+}
+
+export interface XNewsDeliveryRecord {
+  deliveryId: string;
+  listId: string;
+  target: string;
+  postId: string;
+  syncRunId: string;
+  deliveredAt: string;
+  externalMessageId?: string;
+}
+
+export interface XNewsCandidateDiscovery {
+  handle: string;
+  topicIds: string[];
+  sourceHandles: string[];
+  postIds: string[];
+  topicRelevanceScore: number;
+  networkScore: number;
+  authorQualityScore: number;
+  discoveryScore: number;
+}
+
+export interface XNewsSyncSummary {
+  runId: string;
+  listId: string;
+  status: SyncRunStatus;
+  seedAccountsSeen: number;
+  trackedAccountsCrawled: number;
+  postsSeen: number;
+  postsStored: number;
+  accountsAdded: number;
+  deliveriesAttempted: number;
+  deliveriesSucceeded: number;
+  deliveriesFailed: number;
+  deliveredPostIds: string[];
+  addedHandles: string[];
+  partialErrors: string[];
+}
+
+export interface XNewsBriefItem {
+  postId: string;
+  authorHandle: string;
+  authorDisplayName: string;
+  postUrl: string;
+  postedAt: string;
+  text: string;
+  matchedTopicIds: string[];
+  score: number;
+  whyItMatters: string;
+}
+
+export interface XNewsBriefSummary {
+  hours: number;
+  topic?: string;
+  items: XNewsBriefItem[];
+}
+
+export interface IndeedSearchCard {
+  jobKey: string;
+  title: string;
+  company: string;
+  locationRaw: string;
+  compensationText?: string;
+  summaryText: string;
+  metadataTags: string[];
+  workModel: WorkModel;
+  detailUrl: string;
+}
+
+export interface IndeedDetailSnapshot {
+  jobKey: string;
+  title: string;
+  company: string;
+  locationRaw: string;
+  workModel: WorkModel;
+  officeLocationRaw?: string;
+  remoteEligibility?: string;
+  seniority: Seniority;
+  employmentType?: string;
+  compensationText?: string;
+  skills: string[];
+  normalizedDescription: string;
+  canonicalUrl: string;
+}
+
+export type SyncRunStatus = "running" | "completed" | "completed_with_errors" | "failed";
+
+export interface SyncRunRecord {
+  runId: string;
+  alertId: string;
+  searchUrl: string;
+  status: SyncRunStatus;
+  startedAt: string;
+  completedAt?: string;
+  pagesFetched: number;
+  cardsSeen: number;
+  cardsFilteredBeforeDetail: number;
+  detailPagesFetched: number;
+  parsedLeads: number;
+  leadsCreated: number;
+  leadsUpdated: number;
+  duplicatesMerged: number;
+  deliveriesAttempted: number;
+  deliveriesSucceeded: number;
+  deliveriesFailed: number;
+  errorMessage?: string;
+}
+
+export interface DiscordDeliveryRecord {
+  deliveryId: string;
+  alertId: string;
+  target: string;
+  leadId: string;
+  reviewStatus: ReviewStatus;
+  syncRunId: string;
+  deliveredAt: string;
+  externalMessageId?: string;
+}
+
+export interface DiscordMessagePayload {
+  target: string;
+  message: string;
+}
+
+export interface DiscordMessageResult {
+  deliveryId?: string;
+}
+
+export interface AlertSyncSummary {
+  runId: string;
+  alertId: string;
+  status: SyncRunStatus;
+  pagesFetched: number;
+  cardsSeen: number;
+  cardsFilteredBeforeDetail: number;
+  detailPagesFetched: number;
+  deliveriesAttempted: number;
+  deliveriesSucceeded: number;
+  deliveriesFailed: number;
+  deliveredLeadIds: string[];
+  ingest: IngestSummary;
+}
+
+export interface IndeedPageFetcher {
+  fetchSearchPage(url: string): Promise<string>;
+  fetchDetailPage(jobKey: string, url: string): Promise<string>;
+  close(): Promise<void>;
+}
+
+export interface XNewsPageFetcher {
+  fetchFollowingPage(handle: string): Promise<string>;
+  fetchTimelinePage(handle: string): Promise<string>;
+  close(): Promise<void>;
 }
 
 export interface ReviewThreadProjection {
