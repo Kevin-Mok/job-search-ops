@@ -64,18 +64,16 @@ chmod 600 .openclaw-dev/openclaw.json
 Validate the config against the installed OpenClaw schema:
 
 ```bash
-OPENCLAW_STATE_DIR="$PWD/.openclaw-dev" \
-OPENCLAW_CONFIG_PATH="$PWD/.openclaw-dev/openclaw.json" \
 openclaw config validate --json
 ```
 
 Load-check the workspace skills:
 
 ```bash
-OPENCLAW_STATE_DIR="$PWD/.openclaw-dev" \
-OPENCLAW_CONFIG_PATH="$PWD/.openclaw-dev/openclaw.json" \
 openclaw skills list
 ```
+
+These `openclaw` commands assume `OPENCLAW_STATE_DIR` and `OPENCLAW_CONFIG_PATH` are already exported for this repo, as shown in [`docs/openclaw-setup.md`](/home/kevin/coding/openclaw/docs/openclaw-setup.md).
 
 For live Discord/Gmail work, replace the placeholder values in [`config/openclaw.example.json5`](/home/kevin/coding/openclaw/config/openclaw.example.json5).
 
@@ -115,12 +113,8 @@ pnpm apply-status:job -- --db data/fresh.sqlite --lead-id maple-systems-junior-p
 Optional OpenClaw runtime checks with the isolated config:
 
 ```bash
-OPENCLAW_STATE_DIR="$PWD/.openclaw-dev" \
-OPENCLAW_CONFIG_PATH="$PWD/.openclaw-dev/openclaw.json" \
 openclaw health --json
 
-OPENCLAW_STATE_DIR="$PWD/.openclaw-dev" \
-OPENCLAW_CONFIG_PATH="$PWD/.openclaw-dev/openclaw.json" \
 openclaw status --json
 ```
 

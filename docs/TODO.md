@@ -58,6 +58,30 @@ This file is the handoff and continuation checklist for the OpenClaw job-ops POC
   - `channels.discord.allowFrom`
   - Discord guild/channel IDs
 - [ ] Configure a real model/provider for live OpenClaw agent turns
+• As of March 12, 2026, use openai/gpt-5-mini if you want to stay on OpenAI and stay safely under a hard CA$1/day cap.
+
+Using the Bank of Canada USD/CAD rate from March 11, 2026 (1 USD = 1.3587 CAD), CA$1/day is about US$0.736/day.Bank of Canada
+(https://www.bankofcanada.ca/rates/daily-digest/) OpenAI’s current standard pricing puts gpt-5-mini at $0.25 / 1M input and $2.00 / 1M
+output, while gpt-5.1-codex is $1.25 / 1M input and $10.00 / 1M output.OpenAI pricing (https://developers.openai.com/api/docs/pricing)
+
+For a realistic light OpenClaw workload like 200k input + 50k output tokens/day:
+
+- openai/gpt-5-mini: about US$0.15/day = CA$0.20/day
+- openai/gpt-5.1-codex: about US$0.75/day = CA$1.02/day
+
+So gpt-5.1-codex is too close or slightly over if you really mean a hard CA$1/day ceiling.
+
+If cheapest is the priority, google/gemini-2.5-flash-lite is even lower at $0.10 / 1M input and $0.40 / 1M output.Gemini pricing
+(https://ai.google.dev/gemini-api/docs/pricing) That same sample workload is only about US$0.04/day = CA$0.05/day.
+
+My practical recommendation:
+
+- Best balance: openai/gpt-5-mini
+- Cheapest acceptable: google/gemini-2.5-flash-lite
+- Don’t use openai/gpt-5.1-codex if CA$1/day is a real hard cap
+
+This assumes standard token pricing only, not priority tier, grounding/search charges, or other tool fees. If you want, I can turn
+this into an exact OpenClaw config recommendation for both model and memorySearch.
   - Current doctor output reported missing embedding/model provider setup for memory and live runs
 - [ ] Tighten isolated OpenClaw state permissions when using `.openclaw-dev`
   - `chmod 700 .openclaw-dev`

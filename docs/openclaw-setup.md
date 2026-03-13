@@ -38,11 +38,9 @@ mkdir -p .openclaw-dev
 cp config/openclaw.example.json5 .openclaw-dev/openclaw.json
 ```
 
-Then validate with environment overrides:
+Then validate against the isolated repo config:
 
 ```bash
-OPENCLAW_STATE_DIR="$PWD/.openclaw-dev" \
-OPENCLAW_CONFIG_PATH="$PWD/.openclaw-dev/openclaw.json" \
 openclaw config validate
 ```
 
@@ -60,22 +58,211 @@ openclaw status --help
 
 In this Codex environment, gateway-facing commands needed unsandboxed execution to see system network interfaces correctly. Outside the sandbox that issue did not reproduce.
 
-## 6. Discord Setup Path
+## 6. Discord Setup And Smoke Test
 
-Fill in the placeholder values in [`config/openclaw.example.json5`](/home/kevin/coding/openclaw/config/openclaw.example.json5):
+This is the fastest path to prove the OpenClaw workspace can respond in Discord on this repo.
+
+### 6.1 Create A Private Discord Test Server
+
+Create a private test server and at least one text channel, for example `#job-ops-review`.
+
+If you want the Discord channel names to line up with the review-state projection in this repo, create these too:
+
+- `#job-ops-needs-review`
+- `#job-ops-approved`
+- `#job-ops-applied`
+- `#job-ops-archive`
+
+Those names match the projected status channels in [`src/discord/review-plan.ts`](/home/kevin/coding/openclaw/src/discord/review-plan.ts), but this repo does not yet auto-post that projection into Discord.
+
+### 6.2 Create And Invite The Bot
+
+In the Discord Developer Portal:
+
+1. Create a new application and bot.
+2. Copy the bot token.
+3. Invite the bot to the private server with scopes:
+   - `bot`
+   - `applications.commands`
+4. For the quickest smoke test, give the bot `Administrator`.
+
+After the smoke test works, reduce permissions if you want a tighter setup.
+
+If Discord shows the app under `Server Settings > Integrations` but there is no bot member in the server, the app was installed without the `bot` scope. OpenClaw's Discord channel bridge needs a real bot user, not just an app integration with slash commands. In the Developer Portal, check `Installation` and make sure the Guild Install flow includes both `bot` and `applications.commands`, then reinstall the app to the server. A correct server install should show the app in the member list.
+
+### 6.3 Copy The Required Discord IDs
+
+Enable Developer Mode in Discord, then copy:
+
+- your Discord user ID
+- your test server ID
+- your test channel ID
+
+### 6.4 Prepare The Isolated OpenClaw Config
+
+Create a local config if it does not already exist:
+
+```bash
+mkdir -p .openclaw-dev
+cp config/openclaw.example.json5 .openclaw-dev/openclaw.json
+chmod 700 .openclaw-dev
+chmod 600 .openclaw-dev/openclaw.json
+```
+
+If you export `OPENCLAW_STATE_DIR` and `OPENCLAW_CONFIG_PATH` in your shell startup for this repo, you can drop the inline env prefixes from the `openclaw` commands below in new shells. Use absolute paths there, not `$PWD`, for example in `fish`:
+
+```fish
+set -gx OPENCLAW_STATE_DIR /absolute/path/to/openclaw/.openclaw-dev
+set -gx OPENCLAW_CONFIG_PATH /absolute/path/to/openclaw/.openclaw-dev/openclaw.json
+```
+
+Restart the shell or re-source your shell config before relying on those exports. Any already-running OpenClaw gateway process keeps the old environment until you restart it.
+
+Edit [`.openclaw-dev/openclaw.json`](/home/kevin/coding/openclaw/.openclaw-dev/openclaw.json) and replace these placeholders:
 
 - `gateway.auth.token`
+- `hooks.token`
 - `channels.discord.token`
 - `channels.discord.allowFrom`
-- `channels.discord.guilds.*`
+- the placeholder Discord guild and channel IDs
 
-The current repo implementation provides:
+Use this minimal Discord block:
 
-- skill commands for review actions
-- thread/feed projection data
-- a DB-first review model
+```json5
+channels: {
+  discord: {
+    token: "YOUR_DISCORD_BOT_TOKEN",
+    commands: {
+      native: true,
+      nativeSkills: true
+    },
+    dmPolicy: "allowlist",
+    allowFrom: ["YOUR_DISCORD_USER_ID"],
+    threadBindings: {
+      enabled: true,
+      idleHours: 72,
+      maxAgeHours: 336
+    },
+    guilds: {
+      "YOUR_GUILD_ID": {
+        slug: "job-ops-private",
+        channels: {
+          "YOUR_CHANNEL_ID": {
+            allow: true,
+            autoThread: true,
+            skills: [
+              "job-triage",
+              "job-review",
+              "job-approve",
+              "job-reject",
+              "job-note",
+              "resume-choice",
+              "job-apply-status",
+              "draft-packet"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
+```
 
-It does not include live Discord posting tests because no bot token or server IDs are available in this workspace.
+### 6.5 Configure A Model Provider For Live Agent Turns
+
+Discord slash-skill invocation needs a live model/provider. The local `openclaw doctor --non-interactive` output reported that live runs are not ready until a model provider is configured.
+
+Fast path with OpenAI:
+
+```bash
+export OPENAI_API_KEY="your-key"
+
+openclaw configure --section model
+```
+
+For this repo, `openai/gpt-5-mini` is a practical default if you want to stay on OpenAI and keep costs low.
+
+If you do not want embeddings yet, disable memory search to remove the doctor warning:
+
+```bash
+openclaw config set agents.defaults.memorySearch.enabled false
+```
+
+### 6.6 Validate The Config And Workspace Skills
+
+```bash
+openclaw config validate --json
+
+openclaw skills list --json
+```
+
+The repo-specific skills should include:
+
+- `job-triage`
+- `job-review`
+- `job-approve`
+- `job-reject`
+- `job-note`
+- `resume-choice`
+- `job-apply-status`
+- `draft-packet`
+
+### 6.7 Seed The Canonical DB
+
+The Discord skills call the repo CLI against `data/fresh.sqlite`, so seed that DB before the smoke test:
+
+```bash
+pnpm replay:fixtures -- --db data/fresh.sqlite
+```
+
+### 6.8 Start And Verify The Gateway
+
+Run the gateway in one terminal:
+
+```bash
+openclaw gateway
+```
+
+In a second terminal, verify the gateway is reachable:
+
+```bash
+openclaw health --json
+
+openclaw status --json
+```
+
+### 6.9 Run The Discord Smoke Test
+
+In the allowed Discord channel, use the slash skill names from [`openclaw-workspace/skills/`](/home/kevin/coding/openclaw/openclaw-workspace/skills).
+
+Start with:
+
+- `/job-triage`
+- `/job-review lead-id: maple-systems-junior-python-developer`
+- `/job-approve lead-id: maple-systems-junior-python-developer`
+
+These should:
+
+- confirm the bot is connected to Discord
+- confirm slash commands are registered and invocable
+- confirm the workspace skills are loaded
+- confirm the repo CLI can mutate the canonical SQLite DB
+
+### 6.10 Verify The DB Mutation
+
+After `/job-approve`, confirm the DB state changed:
+
+```bash
+pnpm review:state -- --db data/fresh.sqlite
+```
+
+You should see `Maple Systems | Junior Python Developer | approved_for_manual_apply`.
+
+### 6.11 Current Limitation
+
+This repo can currently prove Discord slash-skill invocation and DB-backed mutations.
+
+It cannot yet prove automatic DB-to-Discord review-thread syncing because that implementation is still pending in [`docs/TODO.md`](/home/kevin/coding/openclaw/docs/TODO.md). The current implementation rebuilds the Discord review projection locally through [`src/discord/review-plan.ts`](/home/kevin/coding/openclaw/src/discord/review-plan.ts), but does not post that projection into Discord automatically.
 
 ## 7. Gmail Pub/Sub Setup Path
 
