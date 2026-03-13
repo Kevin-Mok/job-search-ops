@@ -116,6 +116,10 @@
               autoThread: true,
               skills: [
                 "job-triage",
+                "job-sync-indeed",
+                "x-news-sync",
+                "x-news-brief",
+                "x-news-watchlist",
                 "job-review",
                 "job-approve",
                 "job-reject",
@@ -129,6 +133,10 @@
               allow: true,
               autoThread: true,
               skills: [
+                "job-sync-indeed",
+                "x-news-sync",
+                "x-news-brief",
+                "x-news-watchlist",
                 "job-review",
                 "job-approve",
                 "job-reject",

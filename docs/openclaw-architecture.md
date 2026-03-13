@@ -3,13 +3,15 @@
 ## Component Layout
 
 - [`src/core/`](/home/kevin/coding/openclaw/src/core)
-  - Parses raw alert fixtures
+  - Parses raw alert fixtures and browser-extracted Indeed HTML
+  - Parses rendered X/Twitter following and timeline HTML
   - Evaluates location policy for `M1E 4V4`
   - Infers job family, risk flags, and resume lane
   - Generates draft packets without inventing experience
 - [`src/db/store.ts`](/home/kevin/coding/openclaw/src/db/store.ts)
   - SQLite-backed canonical state
-  - Stores job leads, ingest events, and review events
+  - Stores job leads, ingest events, review events, sync runs, and Discord deliveries
+  - Stores tracked X news accounts, posts, sync runs, and Discord deliveries for news digests
 - [`src/discord/review-plan.ts`](/home/kevin/coding/openclaw/src/discord/review-plan.ts)
   - Rebuilds Discord shortlist and thread state from DB records
 - [`openclaw-workspace/`](/home/kevin/coding/openclaw/openclaw-workspace)
@@ -19,8 +21,8 @@
 
 ## End-To-End Flow
 
-1. Gmail Pub/Sub or fixture replay produces inbound alert content.
-2. The parser converts provider-specific alert text into structured lead candidates.
+1. Fixture replay, browser-backed Indeed sync, browser-backed X/Twitter news sync, or future Gmail Pub/Sub produces inbound alert content.
+2. The parser converts provider-specific alert content into structured lead candidates.
 3. The policy layer evaluates:
    - remote Canada eligibility
    - `< 20 km` office constraint for hybrid/on-site
@@ -41,6 +43,18 @@
   - Preserves each source alert that touched a lead
 - `review_events`
   - Preserves approval, rejection, notes, and apply-status changes
+- `sync_runs`
+  - Preserves direct Indeed sync attempts, counts, and failure reasons
+- `discord_deliveries`
+  - Preserves which candidate leads were already announced into each Discord target
+- `x_news_tracked_accounts`
+  - Preserves the internal X watchlist seeded from `@Kev_Mok` following plus auto-added discovery accounts
+- `x_news_posts`
+  - Preserves normalized X posts, matched topic tags, and ranking scores
+- `x_news_sync_runs`
+  - Preserves X sync attempts, crawl counts, auto-added watchlist accounts, and failure reasons
+- `x_news_discord_deliveries`
+  - Preserves which X posts were already announced into each Discord target
 
 This satisfies the repo requirement that DB state is canonical and Discord state is reconstructible.
 

@@ -28,8 +28,10 @@ The thinnest viable architecture for this repo is:
 1. Replay Gmail-like alert fixtures into the domain pipeline.
 2. Normalize leads and write canonical records to SQLite.
 3. Run location policy, dedupe, fit scoring, resume routing, and draft generation.
-4. Derive Discord feed/thread state from DB records.
-5. Expose operator actions as OpenClaw workspace skills that call the repo CLI.
+4. Optionally poll a configured Indeed search URL and push newly prospective leads into a Discord feed channel.
+5. Optionally poll a configured X/Twitter news list, rank high-signal AI posts, and push the top items into a Discord feed channel.
+6. Derive Discord feed/thread state from DB records.
+7. Expose operator actions as OpenClaw workspace skills that call the repo CLI.
 
 That keeps OpenClaw in its intended role:
 
@@ -43,11 +45,14 @@ That keeps OpenClaw in its intended role:
   - Canonical SQLite DB
   - Resume lane routing and draft packet generation
   - Discord review-thread projection from DB state
+  - Browser-backed Indeed sync command with persistent session reuse, blocked-page detection, and Discord feed delivery audit
+  - Browser-backed X/Twitter sync command with persistent session reuse, following-graph seeding, watchlist discovery, and Discord delivery audit
   - Project-managed OpenClaw workspace files and skills
 - Scaffolded but not live-tested:
   - Real Discord bot connectivity
   - Gmail Pub/Sub watch delivery into OpenClaw hooks
   - Live gateway sessions with external model/provider secrets
+  - Successful end-to-end Indeed page fetches beyond Cloudflare interstitial handling
 - Intentionally deferred:
   - Auto-applying on LinkedIn or Indeed
   - A custom OpenClaw plugin for DB access

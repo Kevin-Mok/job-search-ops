@@ -152,6 +152,10 @@ channels: {
             autoThread: true,
             skills: [
               "job-triage",
+              "job-sync-indeed",
+              "x-news-sync",
+              "x-news-brief",
+              "x-news-watchlist",
               "job-review",
               "job-approve",
               "job-reject",
@@ -199,6 +203,10 @@ openclaw skills list --json
 The repo-specific skills should include:
 
 - `job-triage`
+- `job-sync-indeed`
+- `x-news-sync`
+- `x-news-brief`
+- `x-news-watchlist`
 - `job-review`
 - `job-approve`
 - `job-reject`
@@ -215,7 +223,73 @@ The Discord skills call the repo CLI against `data/fresh.sqlite`, so seed that D
 pnpm replay:fixtures -- --db data/fresh.sqlite
 ```
 
-### 6.8 Start And Verify The Gateway
+### 6.8 Configure Direct Indeed Sync
+
+Create a local alert config if it does not already exist:
+
+```bash
+cp config/indeed-alerts.example.json config/indeed-alerts.json
+```
+
+Edit the copied `config/indeed-alerts.json` using [`config/indeed-alerts.example.json`](/home/kevin/coding/openclaw/config/indeed-alerts.example.json) as the template, and replace the placeholder `discordTarget` with the real Discord feed channel, for example `channel:123456789012345680`. The important browser fields are:
+
+- `browserProfile`
+  - persistent OpenClaw browser profile for Indeed cookies/storage reuse
+- `pageTimeoutMs`
+  - total time allowed for a page to become parseable
+- `challengeTimeoutMs`
+  - how long to tolerate a Cloudflare challenge before failing the run
+- `auth.mode`
+  - set to `"pass"` when you want the sync to re-login automatically from machine-local `pass` entries
+- `auth.usernameEntry` / `auth.passwordEntry`
+  - `pass` entry names used when Indeed redirects the run to sign-in
+
+Seed the local `pass` entries once:
+
+```bash
+pnpm indeed:auth:set -- --db data/job-ops.sqlite --config config/indeed-alerts.json --alert-id call-centre-canada-remote --username you@example.com
+```
+
+Then run one manual sync:
+
+```bash
+pnpm sync:indeed -- --db data/job-ops.sqlite --config config/indeed-alerts.json --alert-id call-centre-canada-remote
+```
+
+The sync uses OpenClaw browser automation rather than raw HTTP fetches. It does not require a manual warm-up step, but it does require a working OpenClaw gateway/browser runtime. Before it opens any Indeed page, it runs `openclaw status --json`; if the local gateway is unreachable, the command exits quickly with a gateway/browser-state error instead of hanging in browser navigation waits. If Indeed redirects to sign-in, the sync first reuses the persistent browser profile and then reads the configured `pass` entries to complete the password-only login flow. If Indeed still returns a Cloudflare interstitial, the command exits non-zero and records the blocked run in SQLite.
+
+### 6.8B Configure X News Sync
+
+Create a local X news config if it does not already exist:
+
+```bash
+cp config/twitter-news.example.json config/twitter-news.json
+```
+
+Edit `config/twitter-news.json` and replace the placeholder Discord target with the real feed channel. Keep `seedHandle` as `Kev_Mok` if you want the watchlist to follow the same seed graph from this repo's default plan.
+
+The important fields are:
+
+- `browserProfile`
+  - persistent OpenClaw browser profile for the logged-in X session
+- `maxTrackedAccounts`
+  - cap for the internal watchlist the bot will crawl
+- `maxPostsPerAccount`
+  - per-account crawl cap for one sync
+- `discovery.*`
+  - controls auto-add behavior for newly discovered internal watchlist handles
+
+Before the first live sync, log into X once in the configured browser profile using OpenClaw browser automation. After that, run one manual sync and one stored brief:
+
+```bash
+pnpm sync:x-news -- --db data/job-ops.sqlite --config config/twitter-news.json --list ai-alpha
+pnpm brief:x-news -- --db data/job-ops.sqlite --config config/twitter-news.json --list ai-alpha --hours 24
+pnpm watchlist:x-news -- --db data/job-ops.sqlite --config config/twitter-news.json --list ai-alpha
+```
+
+The X sync uses the same OpenClaw browser runtime as Indeed. If the profile is not logged into X, the sync fails with a logged-in-session error instead of silently returning an empty feed.
+
+### 6.9 Start And Verify The Gateway
 
 Run the gateway in one terminal:
 
@@ -229,15 +303,20 @@ In a second terminal, verify the gateway is reachable:
 openclaw health --json
 
 openclaw status --json
+
+The direct Indeed sync expects the status output to show `"reachable": true` under `gateway`. If you see `connect EPERM`, `gateway closed`, or another local-loopback connectivity error, fix the gateway/runtime first and rerun the sync.
 ```
 
-### 6.9 Run The Discord Smoke Test
+### 6.10 Run The Discord Smoke Test
 
 In the allowed Discord channel, use the slash skill names from [`openclaw-workspace/skills/`](/home/kevin/coding/openclaw/openclaw-workspace/skills).
 
 Start with:
 
 - `/job-triage`
+- `/job-sync-indeed`
+- `/x-news-sync`
+- `/x-news-brief`
 - `/job-review lead-id: maple-systems-junior-python-developer`
 - `/job-approve lead-id: maple-systems-junior-python-developer`
 
@@ -248,7 +327,33 @@ These should:
 - confirm the workspace skills are loaded
 - confirm the repo CLI can mutate the canonical SQLite DB
 
-### 6.10 Verify The DB Mutation
+### 6.11 Register Continual Sync
+
+After the manual sync works, register a 15-minute cron job through OpenClaw:
+
+```bash
+openclaw cron add \
+  --name indeed-call-centre-sync \
+  --agent jobops \
+  --every 15m \
+  --no-deliver \
+  --message "Use the job-sync-indeed skill. Run the configured Indeed sync for call-centre-canada-remote and summarize pages fetched, leads created or updated, deliveries succeeded or failed, and any blocked-page error."
+```
+
+The sync command itself sends lead notifications into Discord, so the cron job does not need to announce a separate summary to chat.
+
+After the X news sync works, register an hourly cron job:
+
+```bash
+openclaw cron add \
+  --name x-news-ai-alpha-sync \
+  --agent jobops \
+  --every 1h \
+  --no-deliver \
+  --message "Use the x-news-sync skill. Run the configured X news sync for ai-alpha and summarize seed accounts seen, tracked accounts crawled, posts stored, watchlist additions, deliveries succeeded or failed, and any login-wall error."
+```
+
+### 6.12 Verify The DB Mutation
 
 After `/job-approve`, confirm the DB state changed:
 
@@ -258,11 +363,11 @@ pnpm review:state -- --db data/fresh.sqlite
 
 You should see `Maple Systems | Junior Python Developer | approved_for_manual_apply`.
 
-### 6.11 Current Limitation
+### 6.13 Current Limitation
 
-This repo can currently prove Discord slash-skill invocation and DB-backed mutations.
+This repo can currently prove Discord slash-skill invocation, DB-backed mutations, the browser-backed Indeed sync path, and the browser-backed X news sync path through deterministic fixtures.
 
-It cannot yet prove automatic DB-to-Discord review-thread syncing because that implementation is still pending in [`docs/TODO.md`](/home/kevin/coding/openclaw/docs/TODO.md). The current implementation rebuilds the Discord review projection locally through [`src/discord/review-plan.ts`](/home/kevin/coding/openclaw/src/discord/review-plan.ts), but does not post that projection into Discord automatically.
+It does not yet rebuild the full DB-backed review-thread projection into Discord automatically. The current implementation rebuilds the Discord review projection locally through [`src/discord/review-plan.ts`](/home/kevin/coding/openclaw/src/discord/review-plan.ts), while direct Indeed sync posts only the dedicated feed notifications.
 
 ## 7. Gmail Pub/Sub Setup Path
 

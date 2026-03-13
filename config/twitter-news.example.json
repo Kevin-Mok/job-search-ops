@@ -1,0 +1,63 @@
+{
+  "lists": [
+    {
+      "id": "ai-alpha",
+      "label": "AI alpha and model news",
+      "seedHandle": "Kev_Mok",
+      "discordTarget": "channel:123456789012345680",
+      "enabled": true,
+      "browserProfile": "x-news-ai-alpha",
+      "pollEveryMinutes": 60,
+      "maxTrackedAccounts": 200,
+      "maxPostsPerAccount": 5,
+      "pageTimeoutMs": 30000,
+      "challengeTimeoutMs": 12000,
+      "bootstrapHandles": [
+        "openai",
+        "OpenAIDevs",
+        "AnthropicAI",
+        "cloudeveloper",
+        "latentspacepod",
+        "swyx",
+        "karpathy"
+      ],
+      "topics": [
+        {
+          "id": "vibe-coding-alpha",
+          "label": "Vibe Coding Alpha",
+          "keywords": ["vibe coding", "alpha", "agents", "coding agent", "workflow", "dev loop"],
+          "preferredHandles": ["swyx", "latentspacepod", "karpathy"]
+        },
+        {
+          "id": "openai",
+          "label": "OpenAI",
+          "keywords": ["openai", "chatgpt", "responses api", "gpt-5", "gpt 5"],
+          "preferredHandles": ["openai", "OpenAIDevs", "sama"]
+        },
+        {
+          "id": "codex",
+          "label": "Codex",
+          "keywords": ["codex", "openai codex", "coding agent", "codegen", "agentic coding"],
+          "preferredHandles": ["OpenAIDevs", "openai"]
+        },
+        {
+          "id": "claude",
+          "label": "Claude",
+          "keywords": ["claude", "claude code", "claude 4", "sonnet", "opus"],
+          "preferredHandles": ["AnthropicAI", "claudeai"]
+        },
+        {
+          "id": "anthropic",
+          "label": "Anthropic",
+          "keywords": ["anthropic", "constitutional ai", "mcp", "model context protocol"],
+          "preferredHandles": ["AnthropicAI", "claudeai"]
+        }
+      ],
+      "discovery": {
+        "autoAdd": true,
+        "maxNewAccountsPerRun": 10,
+        "minDiscoveryScore": 0.72
+      }
+    }
+  ]
+}
