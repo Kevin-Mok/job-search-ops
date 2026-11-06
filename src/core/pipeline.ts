@@ -53,9 +53,11 @@ function chooseBetterStatus(existing: ReviewStatus, incoming: ReviewStatus): Rev
   return updateReviewStatusForDuplicate(existing, incoming);
 }
 
-function hydrateLeadRecord(lead: ParsedLeadInput): JobLeadRecord {
-  const leadId = buildLeadId(lead);
-  const duplicateKey = buildDuplicateKey(lead);
+function hydrateLeadRecord(lead: ParsedLeadInput, postingIdentity = false): JobLeadRecord {
+  const duplicateKey = postingIdentity ? `posting|${lead.canonicalUrl}` : buildDuplicateKey(lead);
+  const leadId = postingIdentity
+    ? `${buildLeadId(lead)}-${crypto.createHash("sha256").update(duplicateKey).digest("hex").slice(0, 12)}`
+    : buildLeadId(lead);
   const location = evaluateLocationPolicy(lead);
   const jobFamily = inferJobFamily(lead);
   const riskFlags = collectRiskFlags(lead);
@@ -67,7 +69,8 @@ function hydrateLeadRecord(lead: ParsedLeadInput): JobLeadRecord {
     riskFlags,
     resumeFitScore: resumeMatch.fitScore
   });
-  let reviewStatus = scoring.reviewStatus;
+  let reviewStatus = postingIdentity && location.decision !== "rejected" && scoring.reviewStatus === "rejected"
+    ? "needs_review" as const : scoring.reviewStatus;
   let shortlistReason = scoring.shortlistReason;
 
   if (
@@ -208,16 +211,29 @@ function buildIngestEvent(lead: ParsedLeadInput, record: JobLeadRecord): IngestE
   };
 }
 
-export function ingestParsedLeads(store: JobStore, parsedLeads: ParsedLeadInput[]): IngestSummary {
+export function ingestParsedLeads(store: JobStore, parsedLeads: ParsedLeadInput[], postingIdentity = false): IngestSummary {
   let created = 0;
   let updated = 0;
   let duplicatesMerged = 0;
   const touchedLeadIds: string[] = [];
 
   for (const parsed of parsedLeads) {
-    const incoming = hydrateLeadRecord(parsed);
-    const existing = store.findLeadByDuplicateKey(incoming.duplicateKey);
-    const finalRecord = existing ? mergeLead(existing, incoming) : incoming;
+    const incoming = hydrateLeadRecord(parsed, postingIdentity);
+    const existing = (postingIdentity ? store.findLeadByCanonicalUrl(incoming.canonicalUrl) : undefined)
+      ?? store.findLeadByDuplicateKey(incoming.duplicateKey);
+    const finalRecord = existing
+      ? postingIdentity
+        ? {
+            ...incoming,
+            leadId: existing.leadId,
+            duplicateKey: existing.duplicateKey,
+            createdAt: existing.createdAt,
+            reviewStatus: ["approved_for_manual_apply", "applied_manually"].includes(existing.reviewStatus)
+              || (existing.reviewStatus === "rejected" && store.listReviewEvents(existing.leadId).some(event => event.action === "status_changed" && event.payload.status === "rejected"))
+              ? existing.reviewStatus : incoming.reviewStatus
+          }
+        : mergeLead(existing, incoming)
+      : incoming;
 
     if (existing) {
       duplicatesMerged += 1;

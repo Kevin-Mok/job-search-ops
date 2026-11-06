@@ -3,6 +3,8 @@ import path from "node:path";
 import crypto from "node:crypto";
 
 import Database from "better-sqlite3";
+import { LinkedInStore } from "./linkedin-store.js";
+import { JobWorkStore } from "./job-work-store.js";
 
 import type {
   DiscordDeliveryRecord,
@@ -189,11 +191,15 @@ function toXNewsDeliveryRecord(row: SqlRow): XNewsDeliveryRecord {
 
 export class JobStore {
   private readonly db: Database.Database;
+  readonly linkedin: LinkedInStore;
+  readonly work: JobWorkStore;
 
   constructor(public readonly dbPath: string) {
     ensureDirectory(dbPath);
     this.db = new Database(dbPath);
     this.initialize();
+    this.linkedin = new LinkedInStore(this.db);
+    this.work = new JobWorkStore(this.db);
   }
 
   private initialize(): void {
@@ -362,6 +368,11 @@ export class JobStore {
         UNIQUE(target, post_id)
       );
     `);
+  }
+
+  findLeadByCanonicalUrl(url: string): JobLeadRecord | undefined {
+    const row = this.db.prepare("SELECT * FROM job_leads WHERE canonical_url = ? ORDER BY created_at LIMIT 1").get(url) as SqlRow | undefined;
+    return row ? toLeadRecord(row) : undefined;
   }
 
   findLeadByDuplicateKey(duplicateKey: string): JobLeadRecord | undefined {

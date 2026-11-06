@@ -491,3 +491,25 @@ export interface ReviewBoardProjection {
   shortlistFeed: string[];
   threads: ReviewThreadProjection[];
 }
+
+export type LinkedInDeliveryStatus = "pending" | "sending" | "retry" | "uncertain" | "delivered" | "held" | "blocked";
+export interface LinkedInDeliveryRecord {
+  target: string;
+  leadId: string;
+  key: string;
+  status: LinkedInDeliveryStatus;
+  messageId?: string;
+  threadId?: string;
+  attempts: number;
+  retryAt?: string;
+  leaseUntil?: string;
+  reconcileRequired?: boolean;
+  lastError?: string;
+  updatedAt: string;
+}
+export interface LinkedInMessageRecord {
+  messageId: string;
+  version: string;
+  receivedAt: string;
+  leadIds: string[];
+}
