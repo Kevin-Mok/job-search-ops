@@ -6,15 +6,15 @@ Run a normalized LinkedIn alert through SQLite, a stable Discord review thread, 
 
 | Stage | Current evidence | Boundary |
 | --- | --- | --- |
-| LinkedIn intake | Executable normalized-JSON handoff and multi-job fixture replay | No raw LinkedIn HTML/MIME parser or Gmail history consumer |
+| LinkedIn intake | Normalized JSON plus trusted captured Gmail full/raw MIME and labeled HTML parsing | Unknown/unlabeled layouts held; no live Gmail history consumer or automatic auth verifier |
 | Canonical state | Transactional message/hash versions, posting URL identity, chronological observation pointer | No inference that a repeated alert proves a job is open |
 | Initial alert/thread | Durable root/thread receipts, restart, leases, retry/backoff and uncertain readback | Fixture and mocked HTTP; real Discord remains untested |
 | Eligibility | Explicit eligible/ineligible/needs_review decisions tied to posting version | Unknown authorization stays needs_review; location rejection cannot be approved through the CLI |
 | Fit | Explained 1–10 exact declared-skill coverage, evidence links and version hashes | Does not measure experience depth or hiring probability; does not gate resume work |
-| Tailoring | Every eligible job gets durable private prepared JSON and Codex handoff; exact approved claims reordered for the target | No autonomous Codex/model execution or invented claims; real candidate evidence must be approved separately |
+| Tailoring | Every eligible job gets durable private prepared JSON and Codex handoff; exact approved claims reordered for the target | Immutable opt-in plan/receipt adapter; actual Codex CLI execution blocked because tool isolation is unproven; real candidate evidence must be approved separately |
 | PDF | Private adapter reuses unchanged portfolio CSS/local Computer Modern; exact bytes checked for Letter, one page, embedded bold fonts, text, existing custom layout gates and PNG | Extractive draft, not full canonical variant parity; sparse synthetic pages do not prove real resume quality |
 | Attachment | Explicit visual approval names the exact hash; current job/version/eligibility rechecked; returned bytes go to the stored thread | Local fixture attachment and mocked REST requests are not live delivery evidence |
-| Outcome | Existing approve/reject/note and applied_manually operator commands | No application submission or automatic applied status |
+| Outcome | Same-thread authenticated local review handoff plus existing operator commands, atomic actor/interaction audit | No live socket/signature consumer; applied_manually requires explicit manual attestation |
 
 ## Local prerequisites
 
@@ -39,6 +39,18 @@ node scripts/linkedin-demo.mjs --output-dir data/linkedin-demo --phase state
 
 Attachment should show two delivered fixture receipts and no application submission. Replay reports `replayed: true` and retains the same lead/thread/artifact identities. Re-running prepare does not repeat completed work. Keep the output directory, database and journal together; creating a new journal selects another fixture target and intentionally produces another projection.
 
+## Captured connection demo
+
+Use `node scripts/linkedin-demo.mjs --output-dir data/linkedin-connections --phase connections` for the complete synthetic connection handoff. It builds a captured Gmail JSON message plus **synthetic-only** trusted context, ingests four jobs, records an authorized note against the original persisted thread, prepares two eligible jobs, and writes immutable private Codex plans. The result reports zero model calls/production sends and `blocked_cli_isolation_unverified`. Continue with the existing prepare/render and visual-review/attach demo phases if desired.
+
+New CLI seams are `gmail-intake --email-file CAPTURE_JSON --trusted-context CONTEXT_JSON --verified-handoff --transport fixture --journal PRIVATE_JSON`, `discord-review --interaction-file CAPTURE_JSON --review-config ALLOWLIST_JSON --verified-handoff`, and `codex-resume-plan --work-id ID --private-dir DIR`, all with the same `--db`.
+
+Gmail context is separate trusted verifier output: `{verifier:"local-gmail",messageId,sender,authenticated:true,evidenceId,payloadSha256}`. The digest is SHA-256 of `JSON.stringify(capture)` and binds the exact verified bytes/identity. It is not generated from mail headers. Supported captures include base64url Gmail multipart, bounded raw MIME/base64/quoted-printable and labeled HTML with explicit job fields. UTF-8 only; missing/ambiguous fields and unsupported layouts produce durable SQLite intake holds with reasons. Correct verification/parsing can resolve the same captured-version hold. No Gmail API/account/authentication verifier is invoked.
+
+Discord review requires separate configured target/user/parent-channel/thread allowlists plus authenticated interaction metadata containing the original thread/root-message IDs. The handler resolves the job from persisted delivery state; payload lead IDs are not authority. `applied_manually` requires `manualApplicationConfirmed:true`, and actor/interaction provenance is stored atomically with state changes. A JSON flag is not cryptographic authentication; a live signature/socket consumer is still required. Sequential/restart replay is covered; serialize consumers until cross-process replay admission is hardened.
+
+Codex planning validates current eligibility and exact handoff/prepared hashes, job version and thread. Its plan remains private. The injectable isolated-runner API has exclusive durable attempt receipts, approved-ID-only output and uncertainty/restart barriers, verified without model calls. The CLI exposes **planning only**; there is no production model invocation. Installed Codex help did not establish a no-tools/no-network boundary sufficient for untrusted posting text, so execution remains explicitly blocked.
+
 ## Actual CLI and private inputs
 
 `node dist/src/cli.js help` prints the supported commands and flags. JSON goes to stdout; progress goes to stderr every five seconds during slow work. `--plain` removes decorative glyphs. No secrets are accepted on the command line.
@@ -54,7 +66,7 @@ Every command uses the same `--db`. A fixture transport requires `--transport fi
 
 Normalized email input follows the existing fixture contract: `messageId`, `source: "linkedin"`, `receivedAt`, `from`, `subject`, and `textBody`. Bodies use `Title:`, `Company:`, `Location:`, `Work model:`, `Remote eligibility:`, `Skills:`, `View Job:` and `Description:` blocks separated by `---`. See the checked-in synthetic LinkedIn fixture. Only exact `jobs-noreply@linkedin.com` and `jobalerts-noreply@linkedin.com` senders are currently accepted. HTTPS LinkedIn posting URLs are canonicalized, including numeric IDs and removal of tracking query strings.
 
-`--verified-handoff` is for an already authenticated, trusted local adapter/operator. It does **not** verify SMTP headers, DKIM, Gmail identity or DMARC. Do not expose this command as an unauthenticated webhook or let an email/model set its own trust metadata. Raw HTML/MIME requires a separate parser and preserved sender-authentication boundary. Posting text is stored as untrusted data and never executed.
+`--verified-handoff` is for an already authenticated, trusted local adapter/operator. It does **not** verify SMTP headers, DKIM, Gmail identity or DMARC. Do not expose this command as an unauthenticated webhook or let an email/model set its own trust metadata. Captured raw MIME/labeled HTML uses the bounded parser above; unfamiliar real layouts and the external sender-authentication boundary still require verified continuation. Posting text is stored as untrusted data and never executed.
 
 ## Delivery recovery
 
@@ -70,7 +82,7 @@ The [Discord message API](https://docs.discord.com/developers/resources/message)
 
 Before any real send, choose an explicitly authorized private **text** channel, confirm the intended bot/server and permissions (view channel, read history, send messages, create public threads, send in threads, attach files), and provide `JOB_OPS_DISCORD_BOT_TOKEN` through the existing local environment/secret mechanism. Select `--transport discord --channel-id CHANNEL_ID --authorized-test-destination`; no default real destination is inferred. Fixture intake cannot select that live transport. Do not place tokens in files, arguments, prompts, reports or Discord.
 
-No mailbox/account connection, production send or gateway/service change was performed. Gmail Pub/Sub watch renewal/history recovery, actual LinkedIn mail samples, trustworthy sender verification and a controlled live replay/retry test remain unimplemented/unverified. LinkedIn stays email/manual handoff; there is no authenticated LinkedIn extraction. X news is unrelated to the job loop.
+No mailbox/account connection, production send or gateway/service change was performed. Gmail Pub/Sub watch renewal/history recovery, automatic trustworthy sender/signature verification, unfamiliar actual LinkedIn layouts and a controlled live replay/retry test remain unimplemented/unverified. LinkedIn stays email/manual handoff; there is no authenticated LinkedIn extraction. X news is unrelated to the job loop.
 
 ## Verification, rollback and continuation
 

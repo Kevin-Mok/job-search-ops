@@ -1,9 +1,13 @@
 import path from "node:path";
 import fs from "node:fs";
+import crypto from "node:crypto";
 import { createInterface } from "node:readline/promises";
 import { Writable } from "node:stream";
 import { parseArgs } from "node:util";
 
+import { parseTrustedGmailLinkedIn, type TrustedGmailContext } from "./core/gmail-linkedin.js";
+import { handleJobReviewAction } from "./discord/review-actions.js";
+import { planCodexResumeDispatch } from "./core/codex-resume-dispatch.js";
 import { ingestLinkedInEmail, drainLinkedInAlerts } from "./core/linkedin-route.js";
 import { attachLinkedInResume, postingVersion, processLinkedInWork, queueLinkedInWork, type JobEligibility } from "./core/job-workflow.js";
 import { createDiscordLinkedInTransport, createFixtureLinkedInTransport } from "./discord/linkedin-transport.js";
@@ -39,6 +43,9 @@ function readCommonArgs(argv: string[]) {
       hours: { type: "string" },
       topic: { type: "string" },
       "email-file": { type: "string" },
+      "trusted-context": { type: "string" },
+      "interaction-file": { type: "string" },
+      "review-config": { type: "string" },
       transport: { type: "string" },
       journal: { type: "string" },
       fixture: { type: "boolean" },
@@ -212,6 +219,9 @@ async function main(): Promise<void> {
   const parsed = readCommonArgs(cleanedRest);
   if (command === "help") {
     print({ commands: {
+      "gmail-intake": "--db PATH --email-file CAPTURE_JSON --trusted-context VERIFIED_CONTEXT_JSON --verified-handoff --transport fixture --journal PRIVATE_JSON; parsed or durable held result",
+      "discord-review": "--db PATH --interaction-file CAPTURE_JSON --review-config ALLOWLIST_JSON --verified-handoff; no outgoing send",
+      "codex-resume-plan": "--db PATH --work-id ID --private-dir DIR; writes immutable private plan, actual CLI execution blocked",
       "linkedin-intake": "--db PATH --email-file JSON --fixture --transport fixture --journal PRIVATE_JSON (or trusted --verified-handoff with an explicitly authorized discord destination)",
       "linkedin-deliver": "--db PATH --transport fixture --journal PRIVATE_JSON; retries durable initial delivery only",
       "linkedin-state": "--db PATH; lists messages, initial deliveries and versioned work",
@@ -226,6 +236,37 @@ async function main(): Promise<void> {
   const store = new JobStore(resolveDbPath(parsed.values.db));
 
   switch (command) {
+    case "gmail-intake": {
+      if (!parsed.values["verified-handoff"]) throw new Error("Gmail capture requires an independently verified local context and --verified-handoff.");
+      const capturePath = path.resolve(requiredArg(parsed.values, "email-file"));
+      const capture = readPrivateJson(capturePath);
+      const trusted = readPrivateJson(requiredArg(parsed.values, "trusted-context")) as TrustedGmailContext;
+      const parsedEmail = parseTrustedGmailLinkedIn(capture, trusted);
+      const version = crypto.createHash("sha256").update(JSON.stringify(capture)).digest("hex");
+      if (parsedEmail.status === "held") {
+        store.linkedin.holdIntake({ messageId: parsedEmail.messageId ?? `unknown-${version}`, version, capturePath, reasons: parsedEmail.reasons });
+        print(parsedEmail); return;
+      }
+      const transport = linkedInTransport(parsed.values);
+      const intake = ingestLinkedInEmail(store, parsedEmail.email, { verifiedHandoff: true });
+      store.linkedin.resolveIntake(parsedEmail.email.messageId, version);
+      const delivery = await withProgress("Delivering verified captured Gmail jobs", parsed.values, () => drainLinkedInAlerts({ store, transport }));
+      print({ status: "parsed", intake, delivery, work: queueLinkedInWork(store, transport.target) }); return;
+    }
+    case "discord-review": {
+      if (!parsed.values["verified-handoff"]) throw new Error("Discord review requires a trusted authenticated local handoff and explicit allowlists.");
+      const config = readPrivateJson(requiredArg(parsed.values, "review-config"));
+      if (!config || typeof config !== "object" || Array.isArray(config)) throw new Error("Review authorization config must be an object.");
+      const outcome = handleJobReviewAction({ store, interaction: readPrivateJson(requiredArg(parsed.values, "interaction-file")), authorization: { ...config, verifiedHandoff: true } });
+      print(outcome); if (!outcome.ok) process.exitCode = 2; return;
+    }
+    case "codex-resume-plan": {
+      const plan = planCodexResumeDispatch({ store, workId: requiredArg(parsed.values, "work-id"), privateDir: privateDirectory(parsed.values, store.dbPath) });
+      const planPath = path.join(path.dirname(plan.receiptPath), `codex-dispatch-plan-${plan.dispatchId}.json`);
+      try { fs.writeFileSync(planPath, JSON.stringify(plan, null, 2) + "\n", { mode: 0o600, flag: "wx" }); }
+      catch (error) { if (!(error instanceof Error && "code" in error && error.code === "EEXIST" && fs.lstatSync(planPath).isFile() && !fs.lstatSync(planPath).isSymbolicLink() && fs.readFileSync(planPath, "utf8") === JSON.stringify(plan, null, 2) + "\n")) throw new Error("Could not preserve the exact private dispatch plan; inspect its destination."); }
+      print({ workId: plan.binding.workId, dispatchId: plan.dispatchId, execution: plan.execution, planPath, receiptPath: plan.receiptPath }); return;
+    }
     case "linkedin-intake": {
       const transport = linkedInTransport(parsed.values);
       const intake = ingestLinkedInEmail(store, readPrivateJson(requiredArg(parsed.values, "email-file")), { fixture: parsed.values.fixture === true, verifiedHandoff: parsed.values["verified-handoff"] === true });
@@ -240,7 +281,7 @@ async function main(): Promise<void> {
       return;
     }
     case "linkedin-state": {
-      print({ messages: store.linkedin.listMessages(), deliveries: store.linkedin.listDeliveries(), work: store.work.list() });
+      print({ messages: store.linkedin.listMessages(), intakeHolds: store.linkedin.listIntakeHolds(), deliveries: store.linkedin.listDeliveries(), work: store.work.list() });
       return;
     }
     case "linkedin-eligibility": {

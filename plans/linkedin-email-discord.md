@@ -27,7 +27,7 @@ Implement and verify a local LinkedIn alert handoff through canonical SQLite ing
 ## Verification and review
 
 - Defining missing-seam RED logs: `red.log`, `transport-red.log`, `workflow-red.log`, plus independent module RED logs. Added assertion-level review REDs for actual low-fit intake, stale observations, expired batch leases, uncertain readback throttling, corrected holds and slow-response retry timing, then observed GREEN.
-- Final fresh command: `env JOB_OPS_PORTFOLIO_ROOT=/home/kevin/coding/portfolio-site pnpm test` — 13 files, **70/70 passed, zero skipped**, including actual Chrome/CMU rendering, invalid PDF/hash failure, exact-byte fixture attachment and manual-only outcomes.
+- First implementation commit verification command: `env JOB_OPS_PORTFOLIO_ROOT=/home/kevin/coding/portfolio-site pnpm test` — 13 files, **70/70 passed, zero skipped**, including actual Chrome/CMU rendering, invalid PDF/hash failure, exact-byte fixture attachment and manual-only outcomes.
 - `pnpm build` passed; `node --check scripts/linkedin-demo.mjs` passed; `git diff --check` passed. No lint script is configured.
 - Actual CLI demo: intake4 jobs →3 stable fixture threads/1 location hold; explicit synthetic approval2 jobs →fit explanations and two CMU PDFs; exact PNGs inspected; both hashes attached in their same original fixture threads. Separate-process replay returned replayed=true, with stable root/thread/artifact receipts. No live sends/accounts/applications.
 - Independent reviewer originally found uncertainty/backoff, stale observation, low-score admission, lease-clock, send-time eligibility and held-state transition defects. Defining regressions now pass; follow-up review reports4 verified,0 incorrect,1 unresolved (live operation). See private `checks.md` and logs.
@@ -63,3 +63,24 @@ Prepared commit subject: `feat: connect LinkedIn job review workflow`. Implement
 - Cross-repo incident learning registration: **pending outside this task's write scope** at `/home/kevin/linux-config/dot_agents/skills/postmortem-memory/`.
 
 Continuation prompt: [continue-linkedin-job-workflow.md](../prompts/continue-linkedin-job-workflow.md). Next atomic implementation is trustworthy alert parsing/history replay with a failing real-sample fixture; live acceptance stays separate. Preserve the exact private DB/journal/artifact directory when resuming. Commands, outcomes, rollback and manual image check are in [the runbook](../docs/linkedin-workflow.md) and [smoke tests](../docs/smoke-tests.md).
+
+## Final connection sprint (Firstmate steer008/009)
+
+At23:00Z the first no-mistakes run01M6SHA7X63DYBMVDWANCF6561 failed at review: Claude OAuth401 invalid token. Daemon healthy, no findings, no push/PR, branch custody user_owned. No blind retry or global account/daemon repair is authorized.
+
+New explicit scope: bounded native Sol/xhigh workers connect captured Gmail intake, authenticated Discord review handoff and safe Codex dispatch planning before23:10Z; hard stop23:15Z. They own only their module/test pairs; root owns shared store/CLI/docs. Each verifies own model/effort metadata and configuredFast; native spawning cannot explicitly select or independently prove the inherited effective service tier, so that uncertainty is disclosed. No ChartClutch project work or pool administration.
+
+- [x] Gmail message/MIME capture parser with digest-bound separate trusted authentication context and conservative held result.
+- [x] Same-thread Discord review actions with explicit authenticated user/channel/thread bindings and durable operator provenance.
+- [x] Immutable opt-in Codex dispatch plan/receipt; real execution blocked unless tool-capability isolation can be established.
+- [x] Root CLI integration, focused/full tests, concise module handoffs and matching final commit before cutoff.
+
+## Connection milestone and final verification
+
+Second commit subject: `feat: connect captured job workflow handoffs`. Sol/xhigh workers completed Gmail capture parser9 tests, Discord review35 tests and safe Codex planning15 tests. Each verified own model/effort and configuredFast; actual inherited serving tier is unavailable and not claimed. Root integrated all three into actual CLI commands, durable intake holds and atomic review-context transactions. New executable CLI defining RED→GREEN connects captured Gmail→same-thread review→prepared work→private blocked execution plan.
+
+Fresh consolidated verification: `env JOB_OPS_PORTFOLIO_ROOT=/home/kevin/coding/portfolio-site pnpm test` passed **132/132 across18 files, zero skipped**; `pnpm build` passed. The demo wrapper subsequently added the connections phase; `node --check scripts/linkedin-demo.mjs` and actual `--phase connections` invocation passed, with4 jobs, bound operator review,2 private plans,0 model calls/production sends. Previous exact PDF/PNG/hash/thread receipts remain retained. No TypeScript implementation changed after this full run.
+
+Gmail parser trust remains an external local-verifier assertion, not a live account or DKIM verifier. Discord review trust remains authenticated caller metadata; live socket/signature consumer and cross-process replay serialization need follow-up. Actual Codex CLI is unconditionally blocked because installed help did not establish adequate tool-capability isolation; only planning is reachable through CLI. Full canonical resume parity remains open.
+
+The no-mistakes reviewer failure is external OAuth401, with terminal failed run and user_owned branch; no retry is attempted before credentials change. The second commit includes the living validation/concurrent-integration incident records and this plan. Publication, PR and CI remain blocked; no direct push or merge is performed. Firstmate owns external authentication restoration and the next fresh validation of the final HEAD.

@@ -13,9 +13,9 @@ const { values } = parseArgs({ options: {
   "portfolio-root": { type: "string" }, "approve-visual": { type: "boolean" }, plain: { type: "boolean" }
 } });
 const badge = values.plain ? "" : "🧪 ";
-function run(command, args = []) {
+function run(command, args = [], allowedStatuses = [0]) {
   const result = spawnSync(process.execPath, [path.join(root, "dist/src/cli.js"), command, ...args, ...(values.plain ? ["--plain"] : [])], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"], maxBuffer: 16 * 1024 * 1024 });
-  if (result.status !== 0) throw new Error(`Demo stage ${command} failed; preserve its private output and inspect the preceding error.`);
+  if (!allowedStatuses.includes(result.status)) throw new Error(`Demo stage ${command} failed; preserve its private output and inspect the preceding error.`);
   return JSON.parse(result.stdout);
 }
 try {
@@ -43,7 +43,25 @@ try {
   const candidateFile = privateJson("candidate.json", candidate);
   const evidenceFile = privateJson("approved-evidence.json", evidence);
   process.stderr.write(`${badge}LinkedIn synthetic workflow | ${values.phase}\n`);
-  if (values.phase === "intake") {
+  if (values.phase === "connections") {
+    privateJson("synthetic-demo.json", { version: 1, fixtureHash, transport: "fixture-only" });
+    const email = JSON.parse(fs.readFileSync(fixture, "utf8"));
+    const capture = { id: "synthetic-gmail-demo", internalDate: String(Date.parse(email.receivedAt)), payload: { mimeType: "text/plain", headers: [{ name: "From", value: email.from }, { name: "Subject", value: email.subject }], body: { data: Buffer.from(email.textBody).toString("base64url") } } };
+    const context = { verifier: "local-gmail", messageId: capture.id, sender: email.from, authenticated: true, evidenceId: "synthetic-fixture-verifier-only", payloadSha256: crypto.createHash("sha256").update(JSON.stringify(capture)).digest("hex") };
+    const intake = run("gmail-intake", [...common, ...transport, "--verified-handoff", "--email-file", privateJson("gmail-capture.json", capture), "--trusted-context", privateJson("gmail-context.json", context)]);
+    for (const work of intake.work) {
+      const lead = run("show-lead", [...common, "--lead-id", work.leadId]);
+      if (lead.locationDecision === "accepted") run("linkedin-eligibility", [...common, "--lead-id", work.leadId, "--status", "eligible", "--note", "Synthetic demo operator confirmed all hard requirements."]);
+    }
+    const work = run("linkedin-work", [...common, ...transport, "--candidate", candidateFile, "--evidence", evidenceFile, "--private-dir", path.join(directory, "private")]);
+    const binding = intake.delivery.deliveries.find(row => row.status === "delivered");
+    const interaction = { id: "synthetic-demo-review", userId: "synthetic-operator", target: binding.target, channelId: "synthetic-parent", threadId: binding.threadId, rootMessageId: binding.messageId, action: "note", note: "Synthetic operator reviewed the original job thread." };
+    const authorization = { expectedTarget: binding.target, allowedUserIds: [interaction.userId], allowedChannelIds: [interaction.channelId], allowedThreadIds: [interaction.threadId] };
+    const review = run("discord-review", [...common, "--verified-handoff", "--interaction-file", privateJson("review-interaction.json", interaction), "--review-config", privateJson("review-authorization.json", authorization)], [0, 2]);
+    if (!review.ok && review.code !== "replayed_interaction") throw new Error("Synthetic bound review was denied; inspect its private authorization.");
+    const plans = work.filter(row => row.eligibility === "eligible" && ["prepared", "awaiting_visual_review"].includes(row.status)).map(row => run("codex-resume-plan", [...common, "--work-id", row.workId, "--private-dir", path.join(directory, "private")]));
+    process.stdout.write(JSON.stringify({ phase: "connections", intakeStatus: intake.status, jobs: intake.intake.leadIds.length, replayed: intake.intake.replayed, review, plans, modelCalls: 0, productionSends: 0 }, null, 2) + "\n");
+  } else if (values.phase === "intake") {
     privateJson("synthetic-demo.json", { version: 1, fixtureHash, transport: "fixture-only" });
     const result = run("linkedin-intake", [...common, "--email-file", fixture, "--fixture", ...transport]);
     process.stdout.write(JSON.stringify({ phase: "intake", replayed: result.intake.replayed, jobs: result.intake.leadIds.length, initialDeliveries: result.delivery.deliveries.map(row => ({ leadId: row.leadId, status: row.status, threadId: row.threadId })), db, journal }, null, 2) + "\n");
@@ -67,7 +85,7 @@ try {
     process.stdout.write(JSON.stringify({ phase: "attach", attached, manualApplication: "No application submitted or automatically marked applied." }, null, 2) + "\n");
   } else if (values.phase === "state") {
     process.stdout.write(JSON.stringify(run("linkedin-state", common), null, 2) + "\n");
-  } else throw new Error("--phase must be intake, prepare, attach or state.");
+  } else throw new Error("--phase must be connections, intake, prepare, attach or state.");
 } catch (error) {
   process.stderr.write(`${values.plain ? "" : "⚠️ "}${error instanceof Error ? error.message : "Synthetic demo failed."}\n`);
   process.exitCode = 1;

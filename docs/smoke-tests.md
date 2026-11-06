@@ -11,6 +11,15 @@ Use the local synthetic demo to check replay, per-job review threads, private re
 - Action: Exercise a rate-limit or lost-response fixture through the focused route tests, then inspect persisted state before retry.
   Expected: Retry time is honored; uncertainty survives readback throttling. No second POST is attempted without conclusive readback. Corrected location holds can resume; explicit rejection stops pending sends.
 
+## Captured connections and operator provenance
+
+- Action: Run `node scripts/linkedin-demo.mjs --output-dir data/linkedin-connections --phase connections` and inspect its JSON result and private plan paths.
+  Expected: Four captured synthetic Gmail jobs, authorized original-thread review, two eligible prepared jobs, immutable private Codex plans marked blocked_cli_isolation_unverified, zero model calls and zero production sends.
+- Action: Replay an invalid capture-context digest and then a corrected trusted context using the connection CLI regression.
+  Expected: A durable held source version appears, then resolves on successful verified parsing. Unsupported layouts remain visible with reasons.
+- Action: Attempt a review from an unknown user/thread or applied status without manual confirmation; repeat an already handled interaction after restart.
+  Expected: Denial before writes. Approved actions include durable actor/root/thread provenance; audit failure rolls back canonical state. JSON flags do not establish live authentication.
+
 ## Fit, resume and exact attachment
 
 - Action: Run `node scripts/linkedin-demo.mjs --output-dir data/linkedin-demo --phase prepare --portfolio-root /absolute/path/to/portfolio-site` and inspect both returned PNG paths.

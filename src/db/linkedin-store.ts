@@ -1,10 +1,14 @@
 import crypto from "node:crypto";
 import type Database from "better-sqlite3";
-import type { LinkedInDeliveryRecord, LinkedInMessageRecord } from "../core/types.js";
+import type { LinkedInDeliveryRecord, LinkedInMessageRecord, LinkedInIntakeHold } from "../core/types.js";
 
 export class LinkedInStore {
   constructor(private readonly db: Database.Database) {
     db.exec(`
+      CREATE TABLE IF NOT EXISTS linkedin_intake_holds (
+        message_id TEXT NOT NULL, version TEXT NOT NULL, record_json TEXT NOT NULL,
+        PRIMARY KEY(message_id, version)
+      );
       CREATE TABLE IF NOT EXISTS linkedin_posting_observations (
         posting_url TEXT PRIMARY KEY, received_at TEXT NOT NULL, lead_id TEXT NOT NULL
       );
@@ -33,6 +37,22 @@ export class LinkedInStore {
         .run(params.messageId, params.version, params.receivedAt, JSON.stringify(leadIds), JSON.stringify(params.payload));
       return { replayed: false, leadIds };
     })();
+  }
+
+  holdIntake(params: Omit<LinkedInIntakeHold, "status" | "updatedAt">): void {
+    const row: LinkedInIntakeHold = { ...params, status: "held", updatedAt: new Date().toISOString() };
+    this.db.prepare("INSERT INTO linkedin_intake_holds VALUES (?, ?, ?) ON CONFLICT(message_id, version) DO UPDATE SET record_json = excluded.record_json")
+      .run(row.messageId, row.version, JSON.stringify(row));
+  }
+
+  resolveIntake(messageId: string, version: string): void {
+    const row = this.listIntakeHolds().find(entry => entry.messageId === messageId && entry.version === version);
+    if (row) { row.status = "resolved"; row.updatedAt = new Date().toISOString(); this.db.prepare("UPDATE linkedin_intake_holds SET record_json = ? WHERE message_id = ? AND version = ?").run(JSON.stringify(row), messageId, version); }
+  }
+
+  listIntakeHolds(): LinkedInIntakeHold[] {
+    return (this.db.prepare("SELECT record_json FROM linkedin_intake_holds ORDER BY message_id, version").all() as { record_json: string }[])
+      .map(row => JSON.parse(row.record_json) as LinkedInIntakeHold);
   }
 
   latestPosting(url: string): { receivedAt: string; leadId: string } | undefined {

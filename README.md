@@ -26,7 +26,8 @@ The new [LinkedIn workflow](docs/linkedin-workflow.md) connects normalized email
 - Fixture-driven ingest pipeline and SQLite persistence under [`src/`](/home/kevin/coding/openclaw/src)
 - Browser-backed Indeed sync path with persistent OpenClaw browser profiles, blocked-page detection, sync-run audit records, and Discord feed delivery suppression
 - Browser-backed X news sync path with authenticated following/timeline scraping, internal watchlist discovery, sync-run audit records, and Discord delivery suppression
-- LinkedIn normalized-email handoff with transactional versions, conservative posting-URL identity and durable thread/retry reconciliation
+- Trusted captured Gmail JSON/MIME parsing with durable holds, normalized LinkedIn handoff with transactional versions, conservative posting-URL identity and durable thread/retry reconciliation
+- Allowlisted same-thread Discord review handoff with atomic operator provenance; immutable Codex dispatch planning with real execution blocked pending isolation
 - Evidence-backed 1–10 fit, explicit versioned eligibility, private approved-claim resume drafts, CMU PDF checks and hash-bound same-thread fixture attachment
 - Critical workflow tests under [`tests/`](/home/kevin/coding/openclaw/tests)
 
@@ -101,11 +102,11 @@ Build once, then exercise the synthetic workflow. These commands never connect a
 
 ```fish
 pnpm build
-node scripts/linkedin-demo.mjs --output-dir data/linkedin-demo --phase intake
+node scripts/linkedin-demo.mjs --output-dir data/linkedin-demo --phase connections
 node scripts/linkedin-demo.mjs --output-dir data/linkedin-demo --phase prepare --portfolio-root /absolute/path/to/portfolio-site
 ```
 
-`--output-dir` keeps the SQLite DB, local Discord journal and synthetic PDFs together. `--phase intake` is replayable; `prepare` explicitly approves synthetic eligible cases and stops for page-image review. Inspect the returned PNGs before using `--phase attach --approve-visual --portfolio-root /absolute/path/to/portfolio-site`. `--phase state` reports durable state; `--plain` removes decorative terminal glyphs. The PDF phase requires Chrome, Poppler and the read-only portfolio assets. The draft adapter preserves those assets and does not establish full canonical resume parity or actual candidate quality.
+`--output-dir` keeps the SQLite DB, local Discord journal and synthetic PDFs together. `--phase connections` exercises synthetic captured Gmail, bound review and blocked Codex plans; `--phase intake` is replayable; `prepare` explicitly approves synthetic eligible cases and stops for page-image review. Inspect the returned PNGs before using `--phase attach --approve-visual --portfolio-root /absolute/path/to/portfolio-site`. `--phase state` reports durable state; `--plain` removes decorative terminal glyphs. The PDF phase requires Chrome, Poppler and the read-only portfolio assets. The draft adapter preserves those assets and does not establish full canonical resume parity or actual candidate quality.
 
 For the real CLI/input contract, source trust, retry recovery, exact artifact gates and rollback, read [LinkedIn workflow](docs/linkedin-workflow.md). `node dist/src/cli.js help` lists the new commands; `--db` selects canonical storage, and `--transport fixture --journal PATH` selects local delivery. A real transport requires an explicitly authorized private destination and environment credentials; there is no default live send. Unknown authorization stays held for review. Fit never suppresses an eligible job.
 
@@ -194,6 +195,6 @@ pnpm watchlist:x-news -- --config config/twitter-news.json --list ai-alpha
 ## Status
 
 - Implemented locally: normalized LinkedIn email → durable initial thread → explained fit → private approved-claim PDF → hash-bound fixture attachment, versioned eligibility and resume work, fixture replay, normalization, dedupe, location policy, resume routing, draft packets, DB state, Discord review projection, browser-backed Indeed sync, browser-backed X news sync with internal watchlist discovery, and tests.
-- Not live-tested: the new Discord REST adapter and trusted email handoff. Gmail raw-alert parsing/history recovery and autonomous Codex execution remain gaps.
+- Not live-tested: the new Discord REST adapter and trusted email handoff. Live Gmail watch/history and automatic sender/signature verification, unsupported alert layouts, and actual Codex execution remain gaps. Captured MIME/labeled HTML, local review and safe planning are implemented.
 - Scaffolded but not live-tested end-to-end: Discord bot connectivity, Gmail Pub/Sub watch delivery, live gateway run with external model/provider secrets, and successful Indeed fetches beyond Cloudflare interstitial handling.
 - Deferred intentionally: auto-apply flows, full browser automation for all leads before first-pass filtering, multi-tenant abstractions.

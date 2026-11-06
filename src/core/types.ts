@@ -513,3 +513,18 @@ export interface LinkedInMessageRecord {
   receivedAt: string;
   leadIds: string[];
 }
+
+export interface ReviewActionContext {
+  interactionId: string;
+  userId: string;
+  parentChannelId: string;
+  threadId: string;
+  rootMessageId: string;
+  target: string;
+  manualApplicationConfirmed?: boolean;
+}
+
+export interface LinkedInIntakeHold {
+  messageId: string; version: string; capturePath: string; reasons: string[];
+  status: "held" | "resolved"; updatedAt: string;
+}

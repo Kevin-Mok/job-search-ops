@@ -10,6 +10,7 @@ import type {
   DiscordDeliveryRecord,
   JobLeadRecord,
   ReviewEventRecord,
+  ReviewActionContext,
   ReviewStatus,
   SyncRunRecord,
   SyncRunStatus,
@@ -1098,34 +1099,37 @@ export class JobStore {
     resumeVariantId?: string;
     draftPacketJson?: string;
     resumeMatchJson?: string;
+    reviewContext?: ReviewActionContext;
   }): JobLeadRecord {
-    const lead = this.getLead(params.leadId);
-    if (!lead) {
-      throw new Error(`Lead not found: ${params.leadId}`);
-    }
+    return this.db.transaction(() => {
+      const lead = this.getLead(params.leadId);
+      if (!lead) {
+        throw new Error(`Lead not found: ${params.leadId}`);
+      }
 
-    const updated: JobLeadRecord = {
-      ...lead,
-      reviewStatus: params.status ?? lead.reviewStatus,
-      draftPacket: params.draftPacketJson ? decodeJson(params.draftPacketJson) : lead.draftPacket,
-      resumeMatch: params.resumeMatchJson ? decodeJson(params.resumeMatchJson) : lead.resumeMatch,
-      updatedAt: new Date().toISOString()
-    };
+      const updated: JobLeadRecord = {
+        ...lead,
+        reviewStatus: params.status ?? lead.reviewStatus,
+        draftPacket: params.draftPacketJson ? decodeJson(params.draftPacketJson) : lead.draftPacket,
+        resumeMatch: params.resumeMatchJson ? decodeJson(params.resumeMatchJson) : lead.resumeMatch,
+        updatedAt: new Date().toISOString()
+      };
 
-    this.saveLead(updated);
+      this.saveLead(updated);
 
-    if (params.status) {
-      this.appendReviewEvent(lead.leadId, "status_changed", { status: params.status });
-    }
+      if (params.status) {
+        this.appendReviewEvent(lead.leadId, "status_changed", { ...params.reviewContext, status: params.status });
+      }
 
-    if (params.note) {
-      this.appendReviewEvent(lead.leadId, "note", { note: params.note });
-    }
+      if (params.note) {
+        this.appendReviewEvent(lead.leadId, "note", { ...params.reviewContext, note: params.note });
+      }
 
-    if (params.resumeVariantId) {
-      this.appendReviewEvent(lead.leadId, "resume_changed", { resumeVariantId: params.resumeVariantId });
-    }
+      if (params.resumeVariantId) {
+        this.appendReviewEvent(lead.leadId, "resume_changed", { resumeVariantId: params.resumeVariantId });
+      }
 
-    return updated;
+      return updated;
+    })();
   }
 }
