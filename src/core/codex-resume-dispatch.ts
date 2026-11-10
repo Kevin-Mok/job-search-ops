@@ -81,4 +81,3 @@ export function planCodexResumeDispatch(params: PlanParams): CodexResumeDispatch
   };
   return { version: 1, dispatchId: hash(JSON.stringify({ binding, request })), binding, receiptPath: path.join(directory, "codex-dispatch-receipt.json"), execution: "blocked_cli_isolation_unverified", request };
 }
-
