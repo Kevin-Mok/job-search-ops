@@ -4,6 +4,9 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
+import { prepareResumeProfile, renderResumeProfile, type CanonicalResumeProfile } from "./resume-profile.js";
+
+export type { CanonicalResumeProfile, CanonicalResumeWork, CanonicalResumeProject, ResumeSource } from "./resume-profile.js";
 
 const execFileAsync = promisify(execFile);
 const placeholder = /\b(?:TODO|TBD|PLACEHOLDER|lorem ipsum)\b|\{\{[^}]+\}\}|\[INSERT\b/i;
@@ -15,11 +18,12 @@ function required(value: unknown, label: string, limit = 2000): string {
   return value.trim();
 }
 export interface ApprovedResumeClaim { id: string; claim: string; source: string; approved: boolean }
+export interface ResumeCandidate { name: string; email: string; profile?: CanonicalResumeProfile }
 export interface JobResumeInput {
   jobId: string;
   postingVersion: string;
   threadId: string;
-  candidate: { name: string; email: string };
+  candidate: ResumeCandidate;
   target: { title: string; company: string };
   evidence: ApprovedResumeClaim[];
   selectedEvidenceIds?: string[];
@@ -29,7 +33,7 @@ export interface PreparedJobResume {
   jobId: string;
   postingVersion: string;
   threadId: string;
-  candidate: { name: string; email: string };
+  candidate: ResumeCandidate;
   target: { title: string; company: string };
   claims: ApprovedResumeClaim[];
   requiredText: string[];
@@ -68,7 +72,7 @@ export function prepareJobResume(input: JobResumeInput): PreparedJobResume {
   const jobId = required(input.jobId, "job ID", 512);
   const postingVersion = required(input.postingVersion, "posting version", 512);
   const threadId = required(input.threadId, "thread ID", 512);
-  const candidate = { name: required(input.candidate?.name, "candidate name", 200), email: required(input.candidate?.email, "candidate email", 254) };
+  const candidate: ResumeCandidate = { name: required(input.candidate?.name, "candidate name", 200), email: required(input.candidate?.email, "candidate email", 254) };
   const target = { title: required(input.target?.title, "target title", 300), company: required(input.target?.company, "target company", 300) };
   if (!Array.isArray(input.evidence) || input.evidence.length === 0 || input.evidence.length > 200) throw new Error("Resume requires a bounded approved evidence set.");
   const evidence = input.evidence.map(entry => {
@@ -92,9 +96,38 @@ export function prepareJobResume(input: JobResumeInput): PreparedJobResume {
     const relevance = (entry: ApprovedResumeClaim): number => [...words].filter(word => word.length > 2 && plain(entry.claim).toLowerCase().split(/[^a-z0-9+#]+/).includes(word)).length;
     claims = [...claims].sort((a, b) => relevance(b) - relevance(a));
   }
+  let profileText: string[] = [];
+  if (input.candidate.profile !== undefined) {
+    const canonical = prepareResumeProfile(input.candidate.profile, evidence, target.title, input.selectedEvidenceIds);
+    candidate.profile = canonical.profile;
+    claims = canonical.claims;
+    profileText = canonical.requiredText;
+  }
   const evidenceVersion = hash(JSON.stringify(evidence));
   const base = { version: 1 as const, jobId, postingVersion, threadId, candidate, target, claims, evidenceVersion };
-  return { ...base, requiredText: [candidate.name, candidate.email, target.title, target.company, ...claims.map(entry => plain(entry.claim))], inputHash: hash(JSON.stringify(base)) };
+  return { ...base, requiredText: [candidate.name, candidate.email, target.title, target.company, ...profileText, ...claims.map(entry => plain(entry.claim))], inputHash: hash(JSON.stringify(base)) };
+}
+
+async function verifyProfileSources(profile: CanonicalResumeProfile, portfolioRoot: string): Promise<void> {
+  const root = await fs.realpath(portfolioRoot);
+  for (const source of profile.baseline.sources) {
+    const file = await fs.realpath(path.join(root, source.path));
+    const relative = path.relative(root, file);
+    if (!relative || relative.startsWith(`..${path.sep}`) || relative === ".." || path.isAbsolute(relative)) throw new Error("Resume profile source resolves outside the read-only portfolio.");
+    const stat = await fs.stat(file);
+    if (!stat.isFile() || stat.size > 10 * 1024 * 1024 || hash(await fs.readFile(file)) !== source.sha256) throw new Error("Resume profile baseline source hash changed; revalidate the private profile provenance.");
+  }
+}
+
+/** Revalidate persisted inputs before rendering or attaching their bound PDF. */
+export async function verifyPreparedJobResume(prepared: PreparedJobResume, portfolioRoot: string): Promise<PreparedJobResume> {
+  if (prepared?.version !== 1) throw new Error("Prepared resume version must be 1.");
+  const checked = prepareJobResume({ ...prepared, evidence: prepared.claims, selectedEvidenceIds: prepared.claims?.map(entry => entry.id) });
+  const { version, jobId, postingVersion, threadId, candidate, target, claims, evidenceVersion } = prepared;
+  if (hash(JSON.stringify({ version, jobId, postingVersion, threadId, candidate, target, claims, evidenceVersion })) !== prepared.inputHash) throw new Error("Prepared resume input hash does not match its bound claims and target.");
+  if (JSON.stringify(prepared.requiredText) !== JSON.stringify(checked.requiredText)) throw new Error("Prepared resume required text does not match its validated profile and claims.");
+  if (checked.candidate.profile) await verifyProfileSources(checked.candidate.profile, portfolioRoot);
+  return checked;
 }
 
 async function safeOutputDirectory(outputDir: string, portfolioRoot: string): Promise<string> {
@@ -163,9 +196,7 @@ function emphasized(text: string): string { return escapeHtml(text).replace(/\*\
 export async function renderPreparedJobResume(params: {
   prepared: PreparedJobResume; outputDir: string; portfolioRoot: string; chromeBinary?: string;
 }): Promise<ValidatedResumeArtifact> {
-  const checked = prepareJobResume({ ...params.prepared, evidence: params.prepared.claims, selectedEvidenceIds: params.prepared.claims.map(entry => entry.id) });
-  const { version, jobId, postingVersion, threadId, candidate, target, claims, evidenceVersion } = params.prepared;
-  if (hash(JSON.stringify({ version, jobId, postingVersion, threadId, candidate, target, claims, evidenceVersion })) !== params.prepared.inputHash) throw new Error("Prepared resume input hash does not match its bound claims and target.");
+  const checked = await verifyPreparedJobResume(params.prepared, params.portfolioRoot);
   const outputDir = await safeOutputDirectory(params.outputDir, params.portfolioRoot);
   const { prepared } = params;
   const fontCss = (await fs.readFile(path.join(params.portfolioRoot, "app/styles/03-fonts.css"), "utf8"))
@@ -174,7 +205,8 @@ export async function renderPreparedJobResume(params: {
   const renderDir = await fs.mkdtemp(path.join(outputDir, "render-"));
   const htmlPath = path.join(renderDir, `${prepared.inputHash}.html`);
   const generatedPath = path.join(renderDir, `${prepared.inputHash}-generated.pdf`);
-  const html = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; font-src file:"><title>${escapeHtml(prepared.candidate.name)} | ${escapeHtml(prepared.target.title)} | ${escapeHtml(prepared.jobId)}</title><style>html,body{margin:0;padding:0}*{box-sizing:border-box}${fontCss}\n${layoutCss}</style></head><body class="resume-page-surface"><main class="resume-latex resume-latex--pdf"><header class="resume-header"><h1 class="resume-name">${escapeHtml(prepared.candidate.name)}</h1><div class="resume-contact-columns"><div class="resume-contact-column"><span class="contact-label">${escapeHtml(prepared.candidate.email)}</span></div></div></header><section class="resume-section"><h2 class="resume-section-title">${escapeHtml(prepared.target.title)}</h2><p class="resume-summary">Application target: ${escapeHtml(prepared.target.company)}</p></section><section class="resume-section"><h2 class="resume-section-title">Selected contribution evidence</h2><ul class="resume-bullets">${prepared.claims.map(entry => `<li>${emphasized(entry.claim)}</li>`).join("")}</ul></section></main></body></html>`;
+  const content = prepared.candidate.profile ? renderResumeProfile({ ...prepared.candidate, profile: prepared.candidate.profile }, prepared.target, prepared.claims) : `<main class="resume-latex resume-latex--pdf"><header class="resume-header"><h1 class="resume-name">${escapeHtml(prepared.candidate.name)}</h1><div class="resume-contact-columns"><div class="resume-contact-column"><span class="contact-label">${escapeHtml(prepared.candidate.email)}</span></div></div></header><section class="resume-section"><h2 class="resume-section-title">${escapeHtml(prepared.target.title)}</h2><p class="resume-summary">Application target: ${escapeHtml(prepared.target.company)}</p></section><section class="resume-section"><h2 class="resume-section-title">Selected contribution evidence</h2><ul class="resume-bullets">${prepared.claims.map(entry => `<li>${emphasized(entry.claim)}</li>`).join("")}</ul></section></main>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; font-src file:"><title>${escapeHtml(prepared.candidate.name)} | ${escapeHtml(prepared.target.title)} | ${escapeHtml(prepared.jobId)}</title><style>html,body{margin:0;padding:0}*{box-sizing:border-box}${fontCss}\n${layoutCss}</style></head><body class="resume-page-surface">${content}</body></html>`;
   await fs.writeFile(htmlPath, html, { mode: 0o600 });
   const chromeProfile = path.join(renderDir, ".chrome-profile");
   try {

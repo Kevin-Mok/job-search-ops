@@ -1,4 +1,4 @@
-import type { JobStore } from "../db/store.js";
+import { ReplayedReviewInteractionError, type JobStore } from "../db/store.js";
 import type { ReviewStatus } from "../core/types.js";
 
 export interface JobReviewAuthorization {
@@ -96,17 +96,19 @@ export function handleJobReviewAction(params: {
   }
   const lead = store.getLead(bindings[0].leadId);
   if (!lead || lead.source !== "linkedin") return denied("unbound_thread", "Persisted thread has no canonical LinkedIn job.");
-  if (store.listReviewEvents().some(event => event.payload.interactionId === id)) {
-    return denied("replayed_interaction", "This Discord interaction was already recorded; no review changes were made.");
+  try {
+    const updated = store.updateLeadReview({
+      leadId: lead.leadId,
+      status,
+      note: typeof interaction.note === "string" ? interaction.note : undefined,
+      reviewContext: {
+        interactionId: id, userId, parentChannelId: channelId, threadId, rootMessageId, target,
+        ...(status === "applied_manually" ? { manualApplicationConfirmed: true } : {})
+      }
+    });
+    return { ok: true, action, leadId: updated.leadId, reviewStatus: updated.reviewStatus };
+  } catch (error) {
+    if (error instanceof ReplayedReviewInteractionError) return denied("replayed_interaction", error.message);
+    throw error;
   }
-  const updated = store.updateLeadReview({
-    leadId: lead.leadId,
-    status,
-    note: typeof interaction.note === "string" ? interaction.note : undefined,
-    reviewContext: {
-      interactionId: id, userId, parentChannelId: channelId, threadId, rootMessageId, target,
-      ...(status === "applied_manually" ? { manualApplicationConfirmed: true } : {})
-    }
-  });
-  return { ok: true, action, leadId: updated.leadId, reviewStatus: updated.reviewStatus };
 }

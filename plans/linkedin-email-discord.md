@@ -1,4 +1,44 @@
-# LinkedIn email to Discord sprint
+# LinkedIn job workflow plan
+
+Complete the saved-email → fixture Discord → fit → canonical resume/PDF → manual-review route offline. Preserve real candidate inputs and artifacts privately, reuse the portfolio layout read-only, and leave live services and publication behind their existing gates.
+
+## Current accepted continuation — 2026-11-10
+
+Authority: the accepted private `offline-implementation-plan-2026-11-10.md` and Firstmate inbox013 explicitly resume only this task. All November6 deadlines, quota readings and the old task hold are superseded; no new sprint clock is created. ChartClutch and Firstmate helper work stay stopped. No live connections/sends, job-flow model calls, applications, LinkedIn scraping, global auth/daemon repair, portfolio writes or merge.
+
+Fresh setup: isolated existing OpenClaw worktree, clean `fm/job-search-1h-sprint` at `aa2a035101441d9fc41961f3642ba52cb9b161e3`. Supported no-mistakes status confirms `user_owned`; the old run remains terminal failed at reviewer OAuth401. The historical132-test result remains historical; this continuation's final fresh result is156/156, zero skipped. Do not retry publication without changed readiness and a new Firstmate instruction. Runtime Sol/xhigh metadata was observed; current effective Fast routing is not exposed/verified and no settings were changed.
+
+Atomic implementation and ownership:
+
+- [x] Read updated brief/accepted plan and saved progress/checks; verify isolation, initial status, branch/HEAD and custody.
+- [x] Map the complete read-only portfolio web-dev baseline to the explicitly approved contribution bank; prepare paired real private candidate/profile/evidence inputs with source hashes and approval provenance. SRC-only statements do not acquire bank approval IDs; unknown/unapproved claims remain holds.
+- [x] Renderer worker: defining canonical-profile tests RED first, then full canonical sections/metadata and approved bullet routing using unchanged CMU/CSS/layout gates. Keep old simple-candidate compatibility and exact job/version/thread/hash binding.
+- [x] Replay worker: reproduce the suspected Discord interaction race through separate processes. Correct only if reproduced; admission and audit/state must share the existing SQLite transaction. Preserve independent work and report evidence if disproved.
+- [x] Coordinator: add paired optional `--candidate`/`--evidence` demo inputs, retain synthetic defaults, propagate validated canonical profiles through existing workflow/prepared/handoff paths. No new provider/framework.
+- [x] Focused checks, full tests with real PDF rendering, TypeScript build; inspect exact generated real-candidate PNGs before approving fixture attachments, then restart/replay and compare receipts/hashes. Record all failures/skips; zero live workflow sends/model calls.
+- [x] Update README/runbook/smoke checks and continuation prompt; include private usage/rollback and current offline/live boundaries. Prepare a local implementation milestone with the matching plan/docs; no direct push or merge.
+- [ ] After local commit, refresh private report/progress/checks with exact final HEAD and clean status; hand committed work to Firstmate before any fresh no-mistakes run.
+
+Review focus: complete profile section/content retention, canonical metadata provenance versus explicitly approved bank bullets, no accidental SRC approval, paired-input rejection before writes, immutable private source/profile hashes, exact final PDF text/font/layout/visual checks, same-thread restart delivery, and independently reproduced cross-process interaction admission. Preserve prior source observations/receipts and all unrelated work. Rollback is to stop invoking the new profile inputs and use preserved synthetic/legacy inputs; do not delete private artifacts or rewrite history.
+
+### November10 verified implementation milestone
+
+Prepared commit subject: `feat: preserve canonical resumes in job workflow`. This milestone includes its plan, usage/rollback, smoke checklist and Cursor continuation prompt. Successful local commit/clean status and resulting hash are recorded in the private handoff after commit; publication is still open.
+
+- Approved private inputs preserve full canonical contact/entry/skills/education metadata and source provenance. Exact approved bank bullets remain in their original entries; summary/SRC-only statements remain private holds. Simple candidates retain their old renderer. The profile participates in the existing input hash; source hashes are checked on render and attachment. This is complete structure with approved content, not approval of held text or model rewriting.
+- Paired demo inputs validate before writes and remain fingerprint-bound across phases. General pending workflow rejects changed candidate/profile snapshots. Rendering/attachment share schema/hash/derived-text validation; modified prepared claims/candidate/requiredText block before upload. The final canonical target line explicitly says Application target.
+- Separate-process race RED: the same interaction produced four audit rows and the second decision overwrote the first. Minimum transaction correction uses SQLite immediate admission with state/audit writes: GREEN preserves the first decision and two rows, returns replayed_interaction to the duplicate, and retains audit rollback/context-free repeat behavior. No schema extension.
+- Final automated commands from this worktree: `env JOB_OPS_PORTFOLIO_ROOT=/home/kevin/coding/portfolio-site pnpm test` —20 files,156 tests passed, zero skipped; `pnpm build`, `node --check scripts/linkedin-demo.mjs`, `git diff --check` —exit0. Actual Chrome/Poppler/CMU PDF checks ran. Private logs are `offline-2026-11-10/final-{full-tests,build,demo-syntax,diff-check}.log`.
+- Actual CLI proof in private `offline-2026-11-10/final-real-profile-demo`: captured Gmail fixture →4 canonical jobs/3 original threads →2 fit1 eligible full-profile PDFs,1 needs_review,1 ineligible. Both exact final PNGs were inspected before fixture attachment. Final-restart proof compares all5 phases in separate processes, stable job/version/thread/PDF/attachment identities, unchanged journal, exact copied attachment bytes and no applied status. Source candidate/evidence files remain unchanged. Zero production sends and job-flow model calls.
+- Review corrections have assertion RED→GREEN evidence for target wording, prepared-input tampering and changed candidate snapshots. Read-only independent review verified input metadata/approval/source hashes and the preserved four-versus-two replay databases; final artifact/commit review is recorded privately. Preliminary pre-label PDFs remain preserved and were never attached.
+- README gate: `update_in_same_change`, resolved by truthful optional-profile/private-pair usage, unchanged synthetic defaults, cross-process replay behavior and explicit offline/live limits. No tracked configuration changed; no refresh-config or global service mutation.
+- Unexpected setup/input/proof assumptions are recorded in [the living incident](../docs/postmortem/2026-11-10-offline-verification-command-boundaries.md). The initial normalized intake after captured Gmail was a new source message, correctly not a replay; canonical identities stayed stable. Corrected proof repeats both observed sources. Global incident-learning registration remains outside this task's write scope.
+
+Rollback: omit the optional profile and use preserved legacy/synthetic inputs; stop new commands if needed. Retain DB, journal, provenance, exact PDFs and uncertainty records together; do not delete receipts or rewrite delivered history. Next owner: Firstmate confirms reviewer readiness and authorizes no-mistakes for the new committed HEAD. Live Gmail/history/signature consumer, private live Discord acceptance, richer fit, held-claim approval and isolated Codex execution remain separate bounded work. Applications remain manual.
+
+The following sections retain historical November6 milestones and are not current deadlines or claims of a rerun.
+
+## Historical November6 sprint (superseded scope clocks)
 
 Implement and verify a local LinkedIn alert handoff through canonical SQLite ingestion into one durable Discord alert and thread per posting. Start with synthetic normalized email fixtures, then gate real sends on an explicitly authorized private destination. Gmail watch/history and raw HTML/MIME parsing remain separate work.
 

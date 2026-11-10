@@ -4,7 +4,7 @@ import path from "node:path";
 import type { JobLeadRecord } from "./types.js";
 import type { JobStore } from "../db/store.js";
 import { scoreJobFit, validateApprovedFitEvidence, type FitScoreResult } from "./fit-scoring.js";
-import { prepareJobResume, renderPreparedJobResume, validateJobResumeArtifact, type PreparedJobResume, type ValidatedResumeArtifact } from "./job-resume.js";
+import { prepareJobResume, renderPreparedJobResume, validateJobResumeArtifact, verifyPreparedJobResume, type PreparedJobResume, type ResumeCandidate, type ValidatedResumeArtifact } from "./job-resume.js";
 import { DiscordRouteError, type LinkedInTransport, type ThreadMessageReceipt } from "../discord/linkedin-transport.js";
 
 export type JobEligibility = "eligible" | "ineligible" | "needs_review";
@@ -33,7 +33,7 @@ export interface JobWorkRecord {
   preparedPath?: string;
   codexHandoffPath?: string;
   codexStatus?: "awaiting_authorized_dispatch";
-  tailoringMode?: "approved-claim-extractive-draft";
+  tailoringMode?: "approved-claim-extractive-draft" | "canonical-profile-approved-evidence";
   inputHash?: string;
   artifact?: Omit<ValidatedResumeArtifact, "bytes">;
   visualApproval?: { sha256: string; approvedAt: string };
@@ -125,7 +125,7 @@ function savePrivateJson(file: string, value: unknown): void {
 
 export async function processLinkedInWork(params: {
   store: JobStore; transport: LinkedInTransport; privateDir: string;
-  evidence?: unknown; candidate?: { name: string; email: string }; portfolioRoot?: string;
+  evidence?: unknown; candidate?: ResumeCandidate; portfolioRoot?: string;
 }): Promise<JobWorkRecord[]> {
   const { store, transport } = params;
   queueLinkedInWork(store, transport.target);
@@ -145,6 +145,10 @@ export async function processLinkedInWork(params: {
         work.artifact = undefined;
         work.visualApproval = undefined;
         work.attachmentDelivery = undefined;
+      }
+      if (work.preparedPath) {
+        const intended = prepareJobResume({ jobId: lead.leadId, postingVersion: work.postingVersion, threadId: work.threadId, candidate: params.candidate, target: { title: lead.title, company: lead.company }, evidence });
+        if (intended.inputHash !== work.inputHash) throw new Error("Candidate/profile inputs changed; preserve this prepared work and use a fresh private run.");
       }
       work.fit = fit;
       store.work.save(work);
@@ -174,7 +178,7 @@ export async function processLinkedInWork(params: {
         savePrivateJson(work.preparedPath, prepared);
         work.codexHandoffPath = path.join(outputDir, "codex-handoff.json");
         work.codexStatus = "awaiting_authorized_dispatch";
-        work.tailoringMode = "approved-claim-extractive-draft";
+        work.tailoringMode = prepared.candidate.profile ? "canonical-profile-approved-evidence" : "approved-claim-extractive-draft";
         savePrivateJson(work.codexHandoffPath, {
           version: 1, workId: work.workId, jobId: lead.leadId, postingVersion: work.postingVersion,
           observedAt: lead.updatedAt, url: lead.canonicalUrl, title: lead.title, company: lead.company,
@@ -223,10 +227,11 @@ export async function attachLinkedInResume(params: {
     if (work.fitDelivery?.status !== "delivered") throw new Error("Fit explanation must be delivered in the same thread before the PDF.");
     const prepared = JSON.parse(fs.readFileSync(work.preparedPath, "utf8")) as PreparedJobResume;
     if (prepared.inputHash !== work.inputHash || prepared.jobId !== work.leadId || prepared.postingVersion !== work.postingVersion || prepared.threadId !== work.threadId) throw new Error("Prepared resume binding changed; reprepare before attachment.");
+    const checked = await verifyPreparedJobResume(prepared, params.portfolioRoot);
     const artifact = await validateJobResumeArtifact({
       pdfPath: work.artifact.pdfPath, jobId: work.leadId, postingVersion: work.postingVersion, threadId: work.threadId,
       candidateName: prepared.candidate.name, targetTitle: prepared.target.title, targetCompany: prepared.target.company,
-      requiredText: prepared.requiredText, expectedSha256: params.approvedSha256,
+      requiredText: checked.requiredText, expectedSha256: params.approvedSha256,
       outputDir: path.dirname(work.artifact.pdfPath), portfolioRoot: params.portfolioRoot
     });
     if (artifact.bindingHash !== work.artifact.bindingHash) throw new Error("Resume artifact binding mismatch.");

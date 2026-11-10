@@ -57,6 +57,35 @@ describe("durable per-job workflow", () => {
     expect(calls).toHaveLength(before);
   });
 
+  test("canonical private profile reaches durable prepared work and declares its tailoring mode", async () => {
+    const { store, transport, privateDir } = setup();
+    const { leadIds } = ingestLinkedInEmail(store, { ...email, textBody: email.textBody.split("\n---\n")[0] }, { fixture: true });
+    await drainLinkedInAlerts({ store, transport });
+    const lead = store.getLead(leadIds[0])!;
+    store.work.decideEligibility({ leadId: lead.leadId, postingVersion: postingVersion(lead), eligibility: "eligible", reason: "Synthetic operator approval." });
+    const fullCandidate = { ...candidate, profile: {
+      version: 1 as const, baseline: { variantId: "web-dev" as const, sources: [{ path: "lib/resume-data.ts", sha256: "0".repeat(64) }] },
+      contact: { phone: "555-0100", linkedin: "linkedin.com/in/synthetic", github: "github.com/synthetic" },
+      sectionTitles: { experience: "Experience", projects: "Projects", skills: "Skills", education: "Education" },
+      experience: [{ company: "Example Employer", title: "Support Developer", date: "2024 - 2025", languages: ["TypeScript"], evidenceIds: ["approved-synthetic"] }],
+      projects: [{ name: "Example Project", date: "2026", languages: ["TypeScript"], evidenceIds: [] }], skills: ["TypeScript"],
+      education: [{ institution: "Example University", degree: "Computer Science", gpa: "Honours", date: "2020 - 2024" }]
+    } };
+    const [work] = await processLinkedInWork({ store, transport, privateDir, evidence, candidate: fullCandidate });
+    const prepared = JSON.parse(fs.readFileSync(work.preparedPath!, "utf8"));
+    expect(prepared.candidate.profile.experience[0].company).toBe("Example Employer");
+    expect(prepared.candidate.profile.education[0].institution).toBe("Example University");
+    expect(work.tailoringMode).toBe("canonical-profile-approved-evidence");
+    expect(new JobStore(store.dbPath).work.get(work.workId)?.inputHash).toBe(prepared.inputHash);
+    const [replayed] = await processLinkedInWork({ store: new JobStore(store.dbPath), transport, privateDir, evidence, candidate: fullCandidate });
+    expect(replayed.inputHash).toBe(work.inputHash);
+    const changedCandidate = { ...fullCandidate, profile: { ...fullCandidate.profile, skills: ["TypeScript", "SQL"] } };
+    const [changed] = await processLinkedInWork({ store, transport, privateDir, evidence, candidate: changedCandidate });
+    expect(changed.status).toBe("blocked");
+    expect(changed.lastError).toMatch(/candidate|profile/i);
+    expect(JSON.parse(fs.readFileSync(work.preparedPath!, "utf8"))).toEqual(prepared);
+  });
+
   test("unknown eligibility remains visible; changed posting requires a new explicit decision and work version", async () => {
     const { store, transport } = setup();
     const first = { ...email, textBody: email.textBody.split("\n---\n")[0] };
@@ -130,6 +159,19 @@ describe("durable per-job workflow", () => {
     expect(work.status).toBe("awaiting_visual_review");
     expect(work.artifact?.visualReview).toBe("pending");
     const exactBytes = fs.readFileSync(work.artifact!.pdfPath);
+    const preparedBytes = fs.readFileSync(work.preparedPath!);
+    const journalBefore = fs.readFileSync(path.join(privateDir, "discord.json"));
+    for (const mutation of ["claim", "candidate", "requiredText"] as const) {
+      const changed = JSON.parse(preparedBytes.toString());
+      if (mutation === "claim") changed.claims[0].claim = "Unapproved changed contribution.";
+      if (mutation === "candidate") changed.candidate.email = "changed@example.test";
+      if (mutation === "requiredText") changed.requiredText = [];
+      fs.writeFileSync(work.preparedPath!, JSON.stringify(changed));
+      await expect(attachLinkedInResume({ store, transport, workId: work.workId, approvedSha256: work.artifact!.sha256, portfolioRoot: process.env.JOB_OPS_PORTFOLIO_ROOT! })).rejects.toThrow(/prepared|hash|required text/i);
+      expect(store.work.get(work.workId)?.status).toBe("blocked");
+      expect(fs.readFileSync(path.join(privateDir, "discord.json"))).toEqual(journalBefore);
+    }
+    fs.writeFileSync(work.preparedPath!, preparedBytes);
     fs.writeFileSync(work.artifact!.pdfPath, "invalid PDF");
     await expect(attachLinkedInResume({ store, transport, workId: work.workId, approvedSha256: work.artifact!.sha256, portfolioRoot: process.env.JOB_OPS_PORTFOLIO_ROOT! })).rejects.toThrow(/hash/i);
     expect(store.work.get(work.workId)?.status).toBe("blocked");

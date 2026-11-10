@@ -11,6 +11,7 @@ import { planCodexResumeDispatch } from "./core/codex-resume-dispatch.js";
 import { ingestLinkedInEmail, drainLinkedInAlerts } from "./core/linkedin-route.js";
 import { attachLinkedInResume, postingVersion, processLinkedInWork, queueLinkedInWork, type JobEligibility } from "./core/job-workflow.js";
 import { createDiscordLinkedInTransport, createFixtureLinkedInTransport } from "./discord/linkedin-transport.js";
+import type { ResumeCandidate } from "./core/job-resume.js";
 import { generateDraftPacket } from "./core/drafting.js";
 import { storeIndeedPassCredentials } from "./core/indeed-auth.js";
 import { getIndeedAlert, syncIndeedAlert } from "./core/indeed-sync.js";
@@ -297,7 +298,7 @@ async function main(): Promise<void> {
     }
     case "linkedin-work": {
       const transport = linkedInTransport(parsed.values);
-      const candidate = parsed.values.candidate ? readPrivateJson(String(parsed.values.candidate)) as { name: string; email: string } : undefined;
+      const candidate = parsed.values.candidate ? readPrivateJson(String(parsed.values.candidate)) as ResumeCandidate : undefined;
       const evidence = parsed.values.evidence ? readPrivateJson(String(parsed.values.evidence)) : undefined;
       const portfolioRoot = parsed.values.render ? path.resolve(requiredArg(parsed.values, "portfolio-root")) : undefined;
       print(await withProgress("Processing every eligible job", parsed.values, () => processLinkedInWork({ store, transport, privateDir: privateDirectory(parsed.values, store.dbPath), candidate, evidence, portfolioRoot })));

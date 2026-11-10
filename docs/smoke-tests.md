@@ -19,6 +19,8 @@ Use the local synthetic demo to check replay, per-job review threads, private re
   Expected: A durable held source version appears, then resolves on successful verified parsing. Unsupported layouts remain visible with reasons.
 - Action: Attempt a review from an unknown user/thread or applied status without manual confirmation; repeat an already handled interaction after restart.
   Expected: Denial before writes. Approved actions include durable actor/root/thread provenance; audit failure rolls back canonical state. JSON flags do not establish live authentication.
+- Action: Run the separate-process replay case in `tests/discord-review-actions.test.ts` against its shared SQLite fixture.
+  Expected: One accepted approve-plus-note interaction, two audit rows, the later duplicate denied as replayed_interaction, and the first decision unchanged. Local context-free operator notes can still repeat.
 
 ## Fit, resume and exact attachment
 
@@ -28,6 +30,10 @@ Use the local synthetic demo to check replay, per-job review threads, private re
   Expected: Exact PDF hashes are associated with attachment receipts in each original fixture thread. Repeated work preserves two completed artifacts and does not create another alert/thread/attachment. Neither application submission nor automatic applied status occurs.
 - Action: Run the environment-enabled workflow tests documented in [the runbook](linkedin-workflow.md), including tampered PDF and eligibility revocation during validation.
   Expected: Invalid bytes produce a durable blocked error and no upload. Revoked eligibility/current posting mismatch prevents attachment. Real render tests must run, not skip.
+- Action: Start a fresh demo output directory with both `--candidate /absolute/private/candidate.json --evidence /absolute/private/approved-evidence.json`, then prepare, inspect every exact PNG and attach with the same directory. Use an approved canonical profile as described in [the runbook](linkedin-workflow.md#canonical-profile-and-approval-boundary).
+  Expected: Complete contact/experience/projects/skills/education structure, original entry attribution, explicit Application target header, exact approved bullets and unchanged CMU layout gates. Held summaries/SRC-only statements never appear. Both eligible cases receive their own draft even at fit1. Fixture receipts bind the exact inspected bytes to their original threads; no live sends or job-flow model calls.
+- Action: Repeat connections/intake/prepare/attach in separate processes, then compare state/receipts/hashes. Try supplying one input flag or a changed pair against the same run; exercise prepared-metadata tamper cases in the workflow regression.
+  Expected: Stable job/thread/PDF/attachment IDs with no duplicate sends. Missing/changed pairs cannot overwrite snapshots. Modified prepared claims/profile/hash/required text or changed portfolio source hashes block attachment before upload. Revised private inputs require a fresh run.
 
 ## Live acceptance gate
 

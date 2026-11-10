@@ -27,8 +27,8 @@ The new [LinkedIn workflow](docs/linkedin-workflow.md) connects normalized email
 - Browser-backed Indeed sync path with persistent OpenClaw browser profiles, blocked-page detection, sync-run audit records, and Discord feed delivery suppression
 - Browser-backed X news sync path with authenticated following/timeline scraping, internal watchlist discovery, sync-run audit records, and Discord delivery suppression
 - Trusted captured Gmail JSON/MIME parsing with durable holds, normalized LinkedIn handoff with transactional versions, conservative posting-URL identity and durable thread/retry reconciliation
-- Allowlisted same-thread Discord review handoff with atomic operator provenance; immutable Codex dispatch planning with real execution blocked pending isolation
-- Evidence-backed 1–10 fit, explicit versioned eligibility, private approved-claim resume drafts, CMU PDF checks and hash-bound same-thread fixture attachment
+- Allowlisted same-thread Discord review handoff with transactional cross-process replay admission and operator provenance; immutable Codex dispatch planning with real execution blocked pending isolation
+- Evidence-backed 1–10 fit, explicit versioned eligibility, optional complete canonical resume profiles with approved bullet routing, CMU PDF checks and hash-bound same-thread fixture attachment
 - Critical workflow tests under [`tests/`](/home/kevin/coding/openclaw/tests)
 
 ## What Is Scaffolded
@@ -106,7 +106,9 @@ node scripts/linkedin-demo.mjs --output-dir data/linkedin-demo --phase connectio
 node scripts/linkedin-demo.mjs --output-dir data/linkedin-demo --phase prepare --portfolio-root /absolute/path/to/portfolio-site
 ```
 
-`--output-dir` keeps the SQLite DB, local Discord journal and synthetic PDFs together. `--phase connections` exercises synthetic captured Gmail, bound review and blocked Codex plans; `--phase intake` is replayable; `prepare` explicitly approves synthetic eligible cases and stops for page-image review. Inspect the returned PNGs before using `--phase attach --approve-visual --portfolio-root /absolute/path/to/portfolio-site`. `--phase state` reports durable state; `--plain` removes decorative terminal glyphs. The PDF phase requires Chrome, Poppler and the read-only portfolio assets. The draft adapter preserves those assets and does not establish full canonical resume parity or actual candidate quality.
+`--output-dir` keeps the SQLite DB, local Discord journal and private PDFs together. `--phase connections` exercises synthetic captured Gmail, bound review and blocked Codex plans; `--phase intake` is replayable; `prepare` explicitly approves synthetic eligible cases and stops for page-image review. Inspect the returned PNGs before using `--phase attach --approve-visual --portfolio-root /absolute/path/to/portfolio-site`. `--phase state` reports durable state; `--plain` removes decorative terminal glyphs. The PDF phase requires Chrome, Poppler and the read-only portfolio assets.
+
+To use approved private candidate data with these fixture jobs, supply **both** `--candidate /absolute/private/candidate.json --evidence /absolute/private/approved-evidence.json` on the first phase. Later phases reuse validated private snapshots; changed inputs require a fresh output directory. Optional `candidate.profile` retains the canonical web-dev contact, experience, projects, skills and education structure, source hashes and approved evidence IDs. Unapproved/SRC-only bullets and summaries remain review holds. Name/email-only inputs retain the simpler contribution draft. This is offline, deterministic evidence ordering; model tailoring, candidate quality and live service readiness are separate gates. See the [profile contract](docs/linkedin-workflow.md#canonical-profile-and-approval-boundary).
 
 For the real CLI/input contract, source trust, retry recovery, exact artifact gates and rollback, read [LinkedIn workflow](docs/linkedin-workflow.md). `node dist/src/cli.js help` lists the new commands; `--db` selects canonical storage, and `--transport fixture --journal PATH` selects local delivery. A real transport requires an explicitly authorized private destination and environment credentials; there is no default live send. Unknown authorization stays held for review. Fit never suppresses an eligible job.
 

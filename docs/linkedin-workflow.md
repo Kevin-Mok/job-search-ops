@@ -11,8 +11,8 @@ Run a normalized LinkedIn alert through SQLite, a stable Discord review thread, 
 | Initial alert/thread | Durable root/thread receipts, restart, leases, retry/backoff and uncertain readback | Fixture and mocked HTTP; real Discord remains untested |
 | Eligibility | Explicit eligible/ineligible/needs_review decisions tied to posting version | Unknown authorization stays needs_review; location rejection cannot be approved through the CLI |
 | Fit | Explained 1–10 exact declared-skill coverage, evidence links and version hashes | Does not measure experience depth or hiring probability; does not gate resume work |
-| Tailoring | Every eligible job gets durable private prepared JSON and Codex handoff; exact approved claims reordered for the target | Immutable opt-in plan/receipt adapter; actual Codex CLI execution blocked because tool isolation is unproven; real candidate evidence must be approved separately |
-| PDF | Private adapter reuses unchanged portfolio CSS/local Computer Modern; exact bytes checked for Letter, one page, embedded bold fonts, text, existing custom layout gates and PNG | Extractive draft, not full canonical variant parity; sparse synthetic pages do not prove real resume quality |
+| Tailoring | Every eligible job gets durable private prepared JSON and Codex handoff; optional complete canonical profile routes exact approved claims within their original entries | Deterministic target ordering, not model rewriting; actual Codex CLI execution blocked because tool isolation is unproven; approval provenance is a trusted private handoff |
+| PDF | Canonical web-dev sections/metadata or legacy contribution draft, unchanged portfolio CSS/local Computer Modern; exact bytes checked for Letter, one page, embedded bold fonts, full required text, existing layout gates and PNG | Only explicitly approved bullets render; source-only statements and summaries remain held. Page review establishes layout, not hiring quality |
 | Attachment | Explicit visual approval names the exact hash; current job/version/eligibility rechecked; returned bytes go to the stored thread | Local fixture attachment and mocked REST requests are not live delivery evidence |
 | Outcome | Same-thread authenticated local review handoff plus existing operator commands, atomic actor/interaction audit | No live socket/signature consumer; applied_manually requires explicit manual attestation |
 
@@ -20,7 +20,7 @@ Run a normalized LinkedIn alert through SQLite, a stable Discord review thread, 
 
 Use Node 22 compatible dependencies, pnpm, Google Chrome, Poppler (`pdfinfo`, `pdffonts`, `pdftotext`, `pdftoppm`), and a read-only portfolio checkout containing the existing CMU assets and layout-check scripts. Build with `pnpm build`. If cached `better-sqlite3` was built for another Node ABI, rebuild the task-local dependency using `pnpm rebuild better-sqlite3` before interpreting database test failures.
 
-The demo always uses synthetic data and a local fixture journal. It cannot choose a Discord destination. Output inside this checkout must use gitignored `data/`; an external task-private directory also works. No sudo is needed.
+The demo always uses synthetic job/email data and a local fixture journal. Candidate/evidence inputs default to synthetic data, with an optional paired private handoff described below. It cannot choose a Discord destination. Output inside this checkout must use gitignored `data/`; an external task-private directory also works. No sudo is needed.
 
 ```fish
 node scripts/linkedin-demo.mjs --output-dir data/linkedin-demo --phase intake
@@ -47,7 +47,7 @@ New CLI seams are `gmail-intake --email-file CAPTURE_JSON --trusted-context CONT
 
 Gmail context is separate trusted verifier output: `{verifier:"local-gmail",messageId,sender,authenticated:true,evidenceId,payloadSha256}`. The digest is SHA-256 of `JSON.stringify(capture)` and binds the exact verified bytes/identity. It is not generated from mail headers. Supported captures include base64url Gmail multipart, bounded raw MIME/base64/quoted-printable and labeled HTML with explicit job fields. UTF-8 only; missing/ambiguous fields and unsupported layouts produce durable SQLite intake holds with reasons. Correct verification/parsing can resolve the same captured-version hold. No Gmail API/account/authentication verifier is invoked.
 
-Discord review requires separate configured target/user/parent-channel/thread allowlists plus authenticated interaction metadata containing the original thread/root-message IDs. The handler resolves the job from persisted delivery state; payload lead IDs are not authority. `applied_manually` requires `manualApplicationConfirmed:true`, and actor/interaction provenance is stored atomically with state changes. A JSON flag is not cryptographic authentication; a live signature/socket consumer is still required. Sequential/restart replay is covered; serialize consumers until cross-process replay admission is hardened.
+Discord review requires separate configured target/user/parent-channel/thread allowlists plus authenticated interaction metadata containing the original thread/root-message IDs. The handler resolves the job from persisted delivery state; payload lead IDs are not authority. `applied_manually` requires `manualApplicationConfirmed:true`, and actor/interaction provenance is stored atomically with state changes. Interaction admission takes the SQLite write lock in that same transaction, so two independent processes cannot both apply one interaction. A replay returns `replayed_interaction` without another state/audit write; audit failure rolls the whole action back. Context-free local operator actions remain repeatable. A JSON flag is not cryptographic authentication; a live signature/socket consumer is still required.
 
 Codex planning validates current eligibility and exact handoff/prepared hashes, job version and thread. Its plan remains private. The injectable isolated-runner API has exclusive durable attempt receipts, approved-ID-only output and uncertainty/restart barriers, verified without model calls. The CLI exposes **planning only**; there is no production model invocation. Installed Codex help did not establish a no-tools/no-network boundary sufficient for untrusted posting text, so execution remains explicitly blocked.
 
@@ -63,6 +63,28 @@ Codex planning validates current eligibility and exact handoff/prepared hashes, 
 - `linkedin-attach`: requires `--work-id`, exact `--sha256`, `--approve-visual` and `--portfolio-root`. It revalidates captured bytes and current eligibility before attachment. A validation failure is persisted; an uncertain send must reconcile before another write.
 
 Every command uses the same `--db`. A fixture transport requires `--transport fixture --journal PRIVATE_JSON`. Private candidate JSON is `{ "name": "Alex Example", "email": "alex@example.test" }` for the synthetic example. Approved evidence is an array of `{ "id": "synthetic-python", "claim": "Built **Python** validation fixtures.", "skills": ["python"], "source": "synthetic://approved/commit", "approved": true }`. Real evidence must come from verified contributions, not posting text or an inferred directory owner. Approval flags are a trusted operator handoff, not an authorship verifier.
+
+## Canonical profile and approval boundary
+
+Add an optional `profile` to the private candidate JSON to preserve the complete existing web-dev structure. The exported [CanonicalResumeProfile](../src/core/resume-profile.ts) and [synthetic profile tests](../tests/resume-profile.test.ts) define the exact version1 schema:
+
+- `baseline`: `variantId: "web-dev"` and relative portfolio source paths with SHA-256 hashes. Bind the baseline data, approved bank, layout specification/baseline, CSS and local fonts you actually verified. Referenced files are checked read-only at render and attachment; traversal, symlink escape or changed hashes block work.
+- `contact`: phone, LinkedIn and GitHub; candidate name/email remain at the top level. `sectionTitles` names experience, projects, skills and education, optionally otherExperience.
+- `experience` and optional `otherExperience`: company, title, date, languages, `evidenceIds`, and optional company/title/evidence HTTPS links. `projects`: name, date, languages, `evidenceIds` and optional HTTPS URL.
+- `skills`, optional `skillsBold`, `education` (institution, degree, GPA text, date), and optional `primarySectionOrder` (`experience-first` or `projects-first`). Existing CMU layout classes, spacing, bold typography and one-page gates are reused unchanged. The target header explicitly says **Application target**.
+
+Metadata comes from the operator-approved canonical baseline; contribution bullets come only from exact IDs in the approved evidence input. A baseline document alone does not approve a contribution claim. Preserve source/author/approval evidence in private provenance records; repo attribution does not establish employment. Do not invent approval IDs. `SRC-` references, absent/unapproved IDs, duplicate routing, arbitrary bullet text and summaries are rejected. Empty entry `evidenceIds` retain the metadata while unapproved statements stay held privately. Unrouted bank claims do not appear. This is structural retention with approved content, not verbatim reproduction of held source text.
+
+For a private profile fixture run, choose a fresh output directory and pass both inputs:
+
+```fish
+node scripts/linkedin-demo.mjs --output-dir /absolute/private/profile-demo --phase connections --candidate /absolute/private/candidate.json --evidence /absolute/private/approved-evidence.json
+node scripts/linkedin-demo.mjs --output-dir /absolute/private/profile-demo --phase prepare --portfolio-root /absolute/path/to/portfolio-site
+```
+
+Both files must be bounded regular JSON files. They are validated before creating the run, copied with private permissions and fingerprinted in its fixture-only marker. Later phases may omit both flags and reuse those snapshots. A missing partner or changed candidate/evidence is rejected without replacing saved inputs. Keep the original input files and provenance privately; no real candidate facts belong in committed examples. Fixture-job eligibility remains synthetic and establishes no authorization for a real vacancy.
+
+The general `linkedin-work` command also rejects changed candidate/profile inputs when prepared work already exists with the same evidence. Prepared candidate/profile/claim hashes and derived required text are recomputed before attachment, in addition to the exact PDF hash and job/version/thread binding. Treat prepared work as immutable: preserve existing state and start a separate private fixture run for revised candidate inputs. Completed receipts remain historical; changing an input does not rewrite a delivered resume.
 
 Normalized email input follows the existing fixture contract: `messageId`, `source: "linkedin"`, `receivedAt`, `from`, `subject`, and `textBody`. Bodies use `Title:`, `Company:`, `Location:`, `Work model:`, `Remote eligibility:`, `Skills:`, `View Job:` and `Description:` blocks separated by `---`. See the checked-in synthetic LinkedIn fixture. Only exact `jobs-noreply@linkedin.com` and `jobalerts-noreply@linkedin.com` senders are currently accepted. HTTPS LinkedIn posting URLs are canonicalized, including numeric IDs and removal of tracking query strings.
 
@@ -89,11 +111,11 @@ No mailbox/account connection, production send or gateway/service change was per
 ```fish
 pnpm test
 pnpm build
-env JOB_OPS_PORTFOLIO_ROOT=/absolute/path/to/portfolio-site pnpm exec vitest run tests/job-workflow.test.ts tests/job-resume.test.ts tests/linkedin-route.test.ts tests/linkedin-transport.test.ts
+env JOB_OPS_PORTFOLIO_ROOT=/absolute/path/to/portfolio-site pnpm exec vitest run tests/job-workflow.test.ts tests/job-resume.test.ts tests/resume-profile.test.ts tests/linkedin-route.test.ts tests/linkedin-transport.test.ts
 ```
 
-The environment-enabled command exercises actual private PDF rendering and hash-bound fixture attachment. Without the portfolio environment, optional real-render tests are skipped; that is not PDF verification. The suite also covers corrupt/multi-page/non-CMU PDFs, sender rejection, genuine low-fit intake, source ordering, changed versions, current admission, rate limits, uncertainty and revoked eligibility. See [smoke tests](smoke-tests.md) for manual page/restart checks.
+The environment-enabled command exercises actual private PDF rendering and hash-bound fixture attachment. Include `tests/resume-profile.test.ts` for canonical metadata, source hashes, routed evidence and full required-text gates. Without the portfolio environment, optional real-render tests are skipped; that is not PDF verification. The suite also covers corrupt/multi-page/non-CMU PDFs, prepared-metadata tampering, changed candidate snapshots, sender rejection, genuine low-fit intake, source ordering, changed versions, current admission, rate limits, uncertainty and revoked eligibility. Separate-process review tests preserve the first decision and two audit rows when one interaction races. See [smoke tests](smoke-tests.md) for manual page/restart checks.
 
 Rollback is to stop invoking the new commands and return to existing replay/Indeed commands. No scheduler or service was installed. Tables are additive and existing job data is retained; back up the DB/private artifacts before changing code. Do not delete uncertain delivery records or migrate targets as a retry workaround.
 
-Next bounded work: trustworthy Gmail consumer and real alert parsing, authorized private live transport acceptance, richer approved evidence/rubric and complete candidate resume layout/content review, then controlled Codex execution from the persisted handoff. These are separate gates; applications remain manual.
+Next bounded work: approval decisions for privately held claims and candidate content quality, trustworthy Gmail consumer and real alert parsing, authorized private live transport acceptance, richer requirement-weighted fit and controlled Codex execution from the persisted handoff. These are separate gates; applications remain manual. Local commits are handed to Firstmate before a fresh no-mistakes run. An unchanged reviewer-authentication failure must be resolved by its owner before retry; do not bypass the gate.

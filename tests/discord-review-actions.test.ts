@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fork } from "node:child_process";
 import { describe, expect, test } from "vitest";
 import { JobStore } from "../src/db/store.js";
 import { ingestLinkedInEmail } from "../src/core/linkedin-route.js";
@@ -158,4 +159,66 @@ describe("authenticated Discord review connection", () => {
     expect(restarted.listReviewEvents()).toEqual(before);
     expect(restarted.getLead(leadId)?.reviewStatus).toBe("approved_for_manual_apply");
   });
+
+  test("two processes that validate the same interaction persist only one review and its audit events", async () => {
+    const { db, leadId } = setup();
+    const children: ReturnType<typeof fork>[] = [];
+    const start = (name: string, action: string) => {
+      const release = path.join(path.dirname(db), `${name}.release`);
+      const child = fork("tests/helpers/discord-review-process.ts", [db, release, JSON.stringify({
+        authorization, interaction: { ...interaction, action, note: `${name} operator note` }
+      })], { execArgv: ["--import", "tsx"], stdio: ["ignore", "pipe", "pipe", "ipc"] });
+      children.push(child);
+      let stdout = "";
+      let stderr = "";
+      child.stdout!.on("data", data => { stdout += data; });
+      child.stderr!.on("data", data => { stderr += data; });
+      const ready = new Promise<number>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error(`Review process ${name} did not reach its barrier: ${stderr}`)), 10_000);
+        child.once("message", message => {
+          clearTimeout(timeout);
+          resolve((message as { pid: number }).pid);
+        });
+        child.once("error", error => { clearTimeout(timeout); reject(error); });
+        child.once("exit", code => {
+          clearTimeout(timeout);
+          reject(new Error(`Review process ${name} exited before its barrier (${code}): ${stderr}`));
+        });
+      });
+      const outcome = new Promise<ReturnType<typeof handleJobReviewAction>>((resolve, reject) => {
+        child.once("error", reject);
+        child.once("exit", code => {
+          if (code !== 0) reject(new Error(`Review process ${name} failed (${code}): ${stderr}`));
+          else {
+            try { resolve(JSON.parse(stdout)); } catch (error) { reject(error); }
+          }
+        });
+      });
+      // The ready failure is reported first if a child fails before its barrier.
+      void outcome.catch(() => undefined);
+      return { ready, outcome, release };
+    };
+    try {
+      const first = start("first", "approve");
+      const second = start("second", "reject");
+      const pids = await Promise.all([first.ready, second.ready]);
+      expect(new Set([process.pid, ...pids]).size).toBe(3);
+      fs.writeFileSync(first.release, "release");
+      const firstOutcome = await first.outcome;
+      fs.writeFileSync(second.release, "release");
+      const secondOutcome = await second.outcome;
+
+      const restarted = new JobStore(db);
+      const events = restarted.listReviewEvents(leadId);
+      expect(events).toHaveLength(2);
+      expect(events.map(event => event.action).sort()).toEqual(["note", "status_changed"]);
+      expect(events.every(event => event.payload.interactionId === interaction.id)).toBe(true);
+      expect(events.find(event => event.action === "note")?.payload.note).toBe("first operator note");
+      expect(restarted.getLead(leadId)?.reviewStatus).toBe("approved_for_manual_apply");
+      expect(firstOutcome).toMatchObject({ ok: true, reviewStatus: "approved_for_manual_apply" });
+      expect(secondOutcome).toMatchObject({ ok: false, code: "replayed_interaction" });
+    } finally {
+      for (const child of children) if (child.exitCode === null) child.kill();
+    }
+  }, 20_000);
 });

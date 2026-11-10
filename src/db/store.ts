@@ -23,6 +23,13 @@ import { REVIEW_STATUSES } from "../core/types.js";
 
 type SqlRow = Record<string, unknown>;
 
+export class ReplayedReviewInteractionError extends Error {
+  constructor() {
+    super("This Discord interaction was already recorded; no review changes were made.");
+    this.name = "ReplayedReviewInteractionError";
+  }
+}
+
 function ensureDirectory(filePath: string): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
 }
@@ -1101,7 +1108,13 @@ export class JobStore {
     resumeMatchJson?: string;
     reviewContext?: ReviewActionContext;
   }): JobLeadRecord {
+    // Take the write lock before admission so independent connections cannot reuse an interaction.
     return this.db.transaction(() => {
+      if (params.reviewContext && this.db.prepare(`
+        SELECT 1 FROM review_events WHERE json_extract(payload_json, '$.interactionId') = ? LIMIT 1
+      `).get(params.reviewContext.interactionId)) {
+        throw new ReplayedReviewInteractionError();
+      }
       const lead = this.getLead(params.leadId);
       if (!lead) {
         throw new Error(`Lead not found: ${params.leadId}`);
@@ -1130,6 +1143,6 @@ export class JobStore {
       }
 
       return updated;
-    })();
+    }).immediate();
   }
 }
