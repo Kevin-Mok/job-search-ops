@@ -2,11 +2,26 @@
 
 Complete the saved-email → fixture Discord → fit → canonical resume/PDF → manual-review route offline. Preserve real candidate inputs and artifacts privately, reuse the portfolio layout read-only, and leave live services and publication behind their existing gates.
 
+## Current Codex-only validation — 2026-11-10
+
+Firstmate inbox015/016 supersede all historical requests below to restore Claude authentication or wait for Claude readiness. The explicit user correction is Codex only. Preserve implementation commit `4a5c2ef331f581a24e745aaa3eb66088cac13562`; no history rewrite, direct push or merge.
+
+- [x] Verify clean isolated branch and `user_owned` custody after the terminal historical run.
+- [x] Inspect installed no-mistakes v1.84.0 schema/trust rules: no native per-run agent flag; feature-branch `agent` is ignored without trusted default-branch opt-in; review-role overrides are global-only. Do not guess flags, use Pi model flags as a substitute or write an ineffective branch config.
+- [x] Firstmate changed only private machine configuration from `agent: auto` to `agent: codex`, preserving every other setting with no review-role overrides. Worker independently verified selection and doctor exit0: `gate validation codex is runnable`. New runs read global config afresh; no daemon restart/update or account pin change. This is untracked private config, so no tracked-config refresh was introduced.
+- [x] Correct current README/runbook/continuation guidance in this focused documentation milestone; preserve historical failure evidence. Supported Codex unavailability/authentication errors must be reported specifically; never launch another harness or request Claude credentials.
+- [ ] Commit documentation follow-up on top, then start the authorized fresh no-mistakes run with accepted user intent and separate verification plan.
+- [ ] Drive every intent/rebase/review/test/document/lint/push/PR/CI step with yolo off, no `--yes` or skips. Pipeline owns fixes/publication; escalate every ask-user finding to Firstmate verbatim. Stop at CI-ready, verify the forge PR is ready, report exact final head/URL/checks and never merge.
+
+Prepared commit subject: `docs: require Codex-only delivery validation`. This changes delivery guidance only; the verified job-flow code/artifacts are unchanged. Fresh evidence is config/doctor/custody inspection and documentation diff checks; the prior156-test result remains prior-turn evidence until pipeline Test reruns it. README gate: `update_in_same_change`, keeping the public delivery policy consistent with this runbook. Private verification plan retains the environment-enabled full tests/build and existing manual image/hash/thread/replay proof without including personal claim text. Use supported `--no-publish-intent` (inbox017) to keep private sprint context out of the public PR body while retaining full validation intent; this skips no step. Firstmate explicitly authorizes launching after this local commit; no additional permission gate is needed.
+
+Selection evidence: pinned [repo trust rules](https://github.com/kunchenguid/no-mistakes/blob/v1.84.0/docs/src/content/docs/reference/repo-config.md), [global review roles](https://github.com/kunchenguid/no-mistakes/blob/v1.84.0/docs/src/content/docs/reference/global-config.md), and [fresh new-run config loading](https://github.com/kunchenguid/no-mistakes/blob/4822244e763fd4c3d7f48be6433f92df10bb5b33/internal/daemon/manager.go#L1267-L1286). No global writes were performed by this worker. If a future tracked configuration change requires cross-repo refresh, Firstmate owns that operation.
+
 ## Current accepted continuation — 2026-11-10
 
 Authority: the accepted private `offline-implementation-plan-2026-11-10.md` and Firstmate inbox013 explicitly resume only this task. All November6 deadlines, quota readings and the old task hold are superseded; no new sprint clock is created. ChartClutch and Firstmate helper work stay stopped. No live connections/sends, job-flow model calls, applications, LinkedIn scraping, global auth/daemon repair, portfolio writes or merge.
 
-Fresh setup: isolated existing OpenClaw worktree, clean `fm/job-search-1h-sprint` at `aa2a035101441d9fc41961f3642ba52cb9b161e3`. Supported no-mistakes status confirms `user_owned`; the old run remains terminal failed at reviewer OAuth401. The historical132-test result remains historical; this continuation's final fresh result is156/156, zero skipped. Do not retry publication without changed readiness and a new Firstmate instruction. Runtime Sol/xhigh metadata was observed; current effective Fast routing is not exposed/verified and no settings were changed.
+Fresh setup: isolated existing OpenClaw worktree, clean `fm/job-search-1h-sprint` at `aa2a035101441d9fc41961f3642ba52cb9b161e3`. Supported no-mistakes status confirms `user_owned`; the old run remains terminal failed at reviewer OAuth401. The historical132-test result remains historical; this continuation's final fresh result is156/156, zero skipped. That old provider-authentication requirement is withdrawn by the Codex-only section above; Firstmate has authorized a fresh Codex run. Runtime Sol/xhigh metadata was observed; current effective Fast routing is not exposed/verified and no settings were changed by this worker.
 
 Atomic implementation and ownership:
 
@@ -17,7 +32,7 @@ Atomic implementation and ownership:
 - [x] Coordinator: add paired optional `--candidate`/`--evidence` demo inputs, retain synthetic defaults, propagate validated canonical profiles through existing workflow/prepared/handoff paths. No new provider/framework.
 - [x] Focused checks, full tests with real PDF rendering, TypeScript build; inspect exact generated real-candidate PNGs before approving fixture attachments, then restart/replay and compare receipts/hashes. Record all failures/skips; zero live workflow sends/model calls.
 - [x] Update README/runbook/smoke checks and continuation prompt; include private usage/rollback and current offline/live boundaries. Prepare a local implementation milestone with the matching plan/docs; no direct push or merge.
-- [ ] After local commit, refresh private report/progress/checks with exact final HEAD and clean status; hand committed work to Firstmate before any fresh no-mistakes run.
+- [x] After local commit, refresh private report/progress/checks with exact final HEAD and clean status; hand committed work to Firstmate before any fresh no-mistakes run. Completed at `4a5c2ef`; current Codex validation is separately authorized above.
 
 Review focus: complete profile section/content retention, canonical metadata provenance versus explicitly approved bank bullets, no accidental SRC approval, paired-input rejection before writes, immutable private source/profile hashes, exact final PDF text/font/layout/visual checks, same-thread restart delivery, and independently reproduced cross-process interaction admission. Preserve prior source observations/receipts and all unrelated work. Rollback is to stop invoking the new profile inputs and use preserved synthetic/legacy inputs; do not delete private artifacts or rewrite history.
 
@@ -123,4 +138,4 @@ Fresh consolidated verification: `env JOB_OPS_PORTFOLIO_ROOT=/home/kevin/coding/
 
 Gmail parser trust remains an external local-verifier assertion, not a live account or DKIM verifier. Discord review trust remains authenticated caller metadata; live socket/signature consumer and cross-process replay serialization need follow-up. Actual Codex CLI is unconditionally blocked because installed help did not establish adequate tool-capability isolation; only planning is reachable through CLI. Full canonical resume parity remains open.
 
-The no-mistakes reviewer failure is external OAuth401, with terminal failed run and user_owned branch; no retry is attempted before credentials change. The second commit includes the living validation/concurrent-integration incident records and this plan. Publication, PR and CI remain blocked; no direct push or merge is performed. Firstmate owns external authentication restoration and the next fresh validation of the final HEAD.
+Historical delivery state at the second commit: the configured reviewer returned OAuth401, run terminal failed, branch user_owned, no push/PR/CI. The living validation/concurrent-integration incident records remain intact. The current Codex-only section supersedes the former authentication-restoration requirement and governs the authorized fresh validation of the final HEAD.

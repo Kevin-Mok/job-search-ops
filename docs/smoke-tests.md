@@ -39,3 +39,10 @@ Use the local synthetic demo to check replay, per-job review threads, private re
 
 - Action: Review the runbook's explicit private text-channel and authenticated-email prerequisites before selecting any real destination.
   Expected: No production destination is inferred. Live Gmail/parser/Discord acceptance is marked unverified until separately authorized credentials and destination are supplied; no fixture result is presented as live evidence.
+
+## Delivery validation
+
+- Action: Have the configuration owner confirm explicit native Codex selection and absent/Codex-only review-role overrides, then inspect `no-mistakes doctor` and current branch custody before starting an authorized run.
+  Expected: `gate validation codex is runnable`; executable resolution alone proves no authentication/model readiness. No auto/mixed harness fallback or Claude login. Shared configuration changes remain owner-controlled.
+- Action: Start the complete no-mistakes pipeline from the clean committed head with accepted intent, a separate verification plan and `--no-publish-intent`; retain yolo off, all steps and no `--yes`.
+  Expected: All validation/publication steps remain enabled, private intent omitted from the public PR body, ask-user findings escalated verbatim to Firstmate, and exact final head/ready PR/CI outcome reported. Never merge or treat fixture proof as live acceptance.
