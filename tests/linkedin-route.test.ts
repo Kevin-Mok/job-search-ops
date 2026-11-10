@@ -26,6 +26,74 @@ function transport() {
 }
 
 describe("LinkedIn email to Discord", () => {
+  test.each([false, true])("rejected expired send preserves saved root=%s and uncertainty without another write", async savedRoot => {
+    const { db, store } = setup();
+    const { leadIds } = ingestLinkedInEmail(store, { ...email, textBody: email.textBody.split("\n---\n")[0] }, { fixture: true });
+    const remote = transport();
+    const now = new Date("2026-11-10T12:00:00Z");
+    store.linkedin.queue(remote.adapter.target, leadIds[0], false, now.toISOString());
+    const attempted = store.linkedin.claim(remote.adapter.target, leadIds[0], now)!;
+    attempted.reconcileRequired = true;
+    const root = await remote.adapter.sendAlert({ key: attempted.key, title: "Synthetic", content: "Synthetic alert" });
+    if (savedRoot) attempted.messageId = root;
+    store.linkedin.save(attempted);
+    store.updateLeadReview({ leadId: leadIds[0], status: "rejected", note: "Synthetic rejection after remote root success." });
+    await drainLinkedInAlerts({ store: new JobStore(db), transport: remote.adapter, now: new Date(now.getTime() + 61_000) });
+    const held = store.linkedin.listDeliveries()[0];
+    expect(held.status).toBe("held");
+    expect(held.reconcileRequired).toBe(true);
+    expect(held.messageId).toBe(attempted.messageId);
+    expect(held.attempts).toBe(attempted.attempts);
+    expect(remote.messages.size).toBe(1);
+    expect(remote.threads.size).toBe(0);
+  });
+
+  test.each(["sendAlert", "findAlert", "findThread"] as const)("rejection while awaiting %s prevents thread creation and retains root receipt", async stage => {
+    const { store } = setup();
+    const { leadIds } = ingestLinkedInEmail(store, { ...email, textBody: email.textBody.split("\n---\n")[0] }, { fixture: true });
+    const remote = transport();
+    if (stage === "findAlert") {
+      store.linkedin.queue(remote.adapter.target, leadIds[0], false, new Date().toISOString());
+      const delivery = store.linkedin.listDeliveries()[0];
+      delivery.status = "uncertain";
+      delivery.reconcileRequired = true;
+      store.linkedin.save(delivery);
+      await remote.adapter.sendAlert({ key: delivery.key, content: "Synthetic root", title: "Synthetic" });
+    }
+    const original = remote.adapter[stage];
+    if (stage === "sendAlert") remote.adapter.sendAlert = async payload => {
+      const result = await (original as typeof remote.adapter.sendAlert)(payload);
+      store.updateLeadReview({ leadId: leadIds[0], status: "rejected", note: "Synthetic concurrent rejection." });
+      return result;
+    };
+    else remote.adapter[stage] = async key => {
+      const result = await (original as typeof remote.adapter.findAlert)(key);
+      store.updateLeadReview({ leadId: leadIds[0], status: "rejected", note: "Synthetic concurrent rejection." });
+      return result;
+    };
+    await drainLinkedInAlerts({ store, transport: remote.adapter });
+    expect(remote.messages.size).toBe(1);
+    expect(remote.threads.size).toBe(0);
+    expect(store.linkedin.listDeliveries()[0]).toMatchObject({ messageId: "message-0", status: "blocked" });
+  });
+
+  test("rejection during an earlier delivery prevents a later queued alert write", async () => {
+    const { store } = setup();
+    ingestLinkedInEmail(store, email, { fixture: true });
+    const remote = transport();
+    const send = remote.adapter.sendAlert;
+    remote.adapter.sendAlert = async payload => {
+      const current = store.linkedin.listDeliveries().find(row => row.key === payload.key)!;
+      for (const lead of store.listLeads().filter(row => row.leadId !== current.leadId)) {
+        store.updateLeadReview({ leadId: lead.leadId, status: "rejected", note: "Synthetic concurrent batch rejection." });
+      }
+      return send(payload);
+    };
+    await drainLinkedInAlerts({ store, transport: remote.adapter });
+    expect(remote.messages.size).toBe(1);
+    expect(remote.threads.size).toBe(1);
+  });
+
   test("multi-job replay and process restart preserve canonical identities and one thread per reviewable job", async () => {
     const { db, store } = setup();
     const first = ingestLinkedInEmail(store, email, { fixture: true });

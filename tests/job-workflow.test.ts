@@ -8,6 +8,8 @@ import { attachLinkedInResume, processLinkedInWork, queueLinkedInWork, postingVe
 import { createFixtureLinkedInTransport, DiscordRouteError } from "../src/discord/linkedin-transport.js";
 import * as resumeModule from "../src/core/job-resume.js";
 import type { LinkedInTransport } from "../src/discord/linkedin-transport.js";
+import type { JobLeadRecord } from "../src/core/types.js";
+import { planCodexResumeDispatch } from "../src/core/codex-resume-dispatch.js";
 
 const email = JSON.parse(fs.readFileSync("fixtures/email/linkedin-alert-2026-03-12.json", "utf8"));
 const evidence = [{ id: "approved-synthetic", claim: "Built a documented synthetic ticketing demo.", skills: ["ticketing"], source: "synthetic://approved/commit", approved: true }];
@@ -30,6 +32,120 @@ function setup() {
 }
 
 describe("durable per-job workflow", () => {
+  const postingChanges: Partial<JobLeadRecord>[] = [
+    { seniority: "senior" }, { employmentType: "Contract" }, { officeLocationRaw: "Different office" },
+    { compensationText: "Updated compensation" }, { compensationMin: 49_000 },
+    { compensationMax: 58_000 }, { compensationCurrency: "CAD" }
+  ];
+  test.each(postingChanges)("changed persisted posting fact %j invalidates approval and prepared work", async change => {
+    const { store, transport, privateDir, calls } = setup();
+    const { leadIds } = ingestLinkedInEmail(store, { ...email, textBody: email.textBody.split("\n---\n")[2] }, { fixture: true });
+    await drainLinkedInAlerts({ store, transport });
+    const lead = store.getLead(leadIds[0])!;
+    store.work.decideEligibility({ leadId: lead.leadId, postingVersion: postingVersion(lead), eligibility: "eligible", reason: "Synthetic requirements reviewed." });
+    const [original] = await processLinkedInWork({ store, transport, privateDir, evidence, candidate });
+    const prepared = fs.readFileSync(original.preparedPath!);
+    store.saveLead({ ...lead, ...change });
+    const before = calls.length;
+    const result = await processLinkedInWork({ store: new JobStore(store.dbPath), transport, privateDir, evidence, candidate });
+    expect(result).toHaveLength(2);
+    expect(result.find(row => row.workId !== original.workId)).toMatchObject({ eligibility: "needs_review", status: "needs_review" });
+    expect(calls).toHaveLength(before);
+    expect(fs.readFileSync(original.preparedPath!)).toEqual(prepared);
+    expect(() => planCodexResumeDispatch({ store, privateDir, workId: original.workId })).toThrow(/posting changed/i);
+    await expect(attachLinkedInResume({ store, transport, workId: original.workId, approvedSha256: "a".repeat(64), portfolioRoot: privateDir })).rejects.toThrow(/posting changed/i);
+  });
+
+  test.each(["seniority", "employmentType"])("newer email changing only %s requires renewed eligibility", async field => {
+    const { store, transport, privateDir } = setup();
+    const one = { ...email, textBody: email.textBody.split("\n---\n")[2] };
+    const { leadIds } = ingestLinkedInEmail(store, one, { fixture: true });
+    await drainLinkedInAlerts({ store, transport });
+    const lead = store.getLead(leadIds[0])!;
+    store.work.decideEligibility({ leadId: lead.leadId, postingVersion: postingVersion(lead), eligibility: "eligible", reason: "Synthetic initial review." });
+    const [original] = await processLinkedInWork({ store, transport, privateDir, evidence, candidate });
+    const textBody = field === "seniority" ? one.textBody.replace("Mid-level", "Senior") : one.textBody.replace("Full-time", "Contract");
+    ingestLinkedInEmail(store, { ...one, messageId: `updated-${field}`, receivedAt: "2026-11-10T12:00:00Z", textBody }, { fixture: true });
+    expect(store.getLead(lead.leadId)?.normalizedDescription).toBe(lead.normalizedDescription);
+    const work = queueLinkedInWork(store, transport.target);
+    expect(work).toHaveLength(2);
+    expect(work.find(row => row.workId !== original.workId)?.eligibility).toBe("needs_review");
+  });
+
+  test.each(["fit", "attachment"] as const)("changed evidence preserves uncertain %s delivery and immutable prepared inputs", async stage => {
+    const { store, transport, privateDir } = setup();
+    const { leadIds } = ingestLinkedInEmail(store, { ...email, textBody: email.textBody.split("\n---\n")[0] }, { fixture: true });
+    await drainLinkedInAlerts({ store, transport });
+    const lead = store.getLead(leadIds[0])!;
+    store.work.decideEligibility({ leadId: lead.leadId, postingVersion: postingVersion(lead), eligibility: "eligible", reason: "Synthetic initial review." });
+    let sends = 0;
+    if (stage === "fit") transport.sendThreadMessage = async () => { sends++; throw new Error("Remote fit succeeded; receipt lost"); };
+    const [work] = await processLinkedInWork({ store, transport, privateDir, evidence, candidate });
+    const prepared = fs.readFileSync(work.preparedPath!);
+    const handoff = fs.readFileSync(work.codexHandoffPath!);
+    const artifact = { jobId: lead.leadId, postingVersion: work.postingVersion, threadId: work.threadId!, sha256: "a".repeat(64), bindingHash: "bound", bytes: Buffer.from("synthetic test bytes"), pdfPath: path.join(privateDir, "test.pdf"), previewPath: path.join(privateDir, "test.png"), validatedAt: new Date().toISOString(), visualReview: "pending" as const, renderer: "external-portfolio-artifact" as const };
+    const { bytes: _bytes, ...metadata } = artifact;
+    work.artifact = metadata;
+    store.work.save(work);
+    const validator = vi.spyOn(resumeModule, "validateJobResumeArtifact").mockResolvedValue(artifact);
+    try {
+      if (stage === "attachment") {
+        transport.sendAttachment = async () => { sends++; throw new Error("Remote upload succeeded; receipt lost"); };
+        await attachLinkedInResume({ store, transport, workId: work.workId, approvedSha256: artifact.sha256, portfolioRoot: privateDir });
+      }
+      const original = store.work.get(work.workId)!;
+      expect(original[stage === "fit" ? "fitDelivery" : "attachmentDelivery"]).toMatchObject({ status: "uncertain", reconcileRequired: true });
+      for (const inputs of [
+        { evidence: [{ ...evidence[0], claim: "Updated approved contribution." }], candidate },
+        { evidence, candidate: { ...candidate, email: "updated@example.test" } }
+      ]) {
+        const [blocked] = await processLinkedInWork({ store: new JobStore(store.dbPath), transport, privateDir, ...inputs });
+        expect(blocked.status).toBe("blocked");
+        expect(blocked.lastError).toMatch(/changed/i);
+        expect(blocked.fit).toEqual(original.fit);
+        expect(blocked.fitDelivery).toEqual(original.fitDelivery);
+        expect(blocked.attachmentDelivery).toEqual(original.attachmentDelivery);
+        expect(blocked.artifact).toEqual(original.artifact);
+        expect(blocked.visualApproval).toEqual(original.visualApproval);
+        expect(blocked.inputHash).toEqual(original.inputHash);
+        expect(fs.readFileSync(work.preparedPath!)).toEqual(prepared);
+        expect(fs.readFileSync(work.codexHandoffPath!)).toEqual(handoff);
+      }
+      expect(sends).toBe(1);
+      transport.findThreadMessage = async () => ({ messageId: "recovered-receipt", ...(stage === "attachment" ? { attachmentId: "recovered-file" } : {}) });
+      const [restored] = await processLinkedInWork({ store, transport, privateDir, evidence, candidate });
+      expect(restored.status).toBe("awaiting_visual_review");
+      expect(() => planCodexResumeDispatch({ store, privateDir, workId: work.workId })).not.toThrow();
+      if (stage === "attachment") {
+        const recovered = await attachLinkedInResume({ store, transport, workId: work.workId, approvedSha256: artifact.sha256, portfolioRoot: privateDir });
+        expect(recovered.attachmentDelivery).toMatchObject({ status: "delivered", messageId: "recovered-receipt", attachmentId: "recovered-file" });
+      } else expect(store.work.get(work.workId)?.fitDelivery).toMatchObject({ status: "delivered", messageId: "recovered-receipt" });
+      expect(sends).toBe(1);
+    } finally { validator.mockRestore(); }
+  });
+
+  test("candidate binding is durable before a fit attempt even without a prepared file", async () => {
+    const { store, transport, privateDir } = setup();
+    const { leadIds } = ingestLinkedInEmail(store, { ...email, textBody: email.textBody.split("\n---\n")[0] }, { fixture: true });
+    await drainLinkedInAlerts({ store, transport });
+    const lead = store.getLead(leadIds[0])!;
+    store.work.decideEligibility({ leadId: lead.leadId, postingVersion: postingVersion(lead), eligibility: "eligible", reason: "Synthetic requirements reviewed." });
+    let attemptBinding: string | undefined;
+    transport.sendThreadMessage = async () => {
+      attemptBinding = store.work.list()[0].inputHash;
+      throw new Error("Remote fit succeeded; receipt lost");
+    };
+    const [work] = await processLinkedInWork({ store, transport, privateDir, evidence, candidate });
+    expect(attemptBinding).toBe(work.inputHash);
+    work.preparedPath = undefined;
+    work.codexHandoffPath = undefined;
+    store.work.save(work);
+    const [blocked] = await processLinkedInWork({ store, transport, privateDir, evidence, candidate: { ...candidate, email: "changed@example.test" } });
+    expect(blocked.status).toBe("blocked");
+    expect(blocked.fitDelivery).toEqual(work.fitDelivery);
+    expect(blocked.preparedPath).toBeUndefined();
+  });
+
   test("every low-score eligible job gets prepared work after initial delivery, with no score or support cutoff", async () => {
     const { store, transport, calls, privateDir } = setup();
     const { leadIds } = ingestLinkedInEmail(store, email, { fixture: true });

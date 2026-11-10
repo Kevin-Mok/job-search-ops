@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import Database from "better-sqlite3";
 
 export interface LinkedInAlertPayload { key: string; content: string; title: string }
 export interface ThreadMessageReceipt { messageId: string; attachmentId?: string }
@@ -149,31 +150,46 @@ export function createFixtureLinkedInTransport(journalPath: string): LinkedInTra
     return journal;
   }
   function write(journal: FixtureJournal): void {
-    fs.mkdirSync(path.dirname(journalPath), { recursive: true });
     const temporary = `${journalPath}.${process.pid}.tmp`;
     fs.writeFileSync(temporary, JSON.stringify(journal, null, 2) + "\n", { mode: 0o600 });
     fs.renameSync(temporary, journalPath);
   }
+  function mutate<T>(update: (journal: FixtureJournal) => T): T {
+    fs.mkdirSync(path.dirname(journalPath), { recursive: true, mode: 0o700 });
+    const lockPath = `${journalPath}.lock.sqlite`;
+    const lock = new Database(lockPath);
+    try {
+      fs.chmodSync(lockPath, 0o600);
+      return lock.transaction(() => {
+        const journal = read();
+        const receipt = update(journal);
+        write(journal);
+        return receipt;
+      }).immediate();
+    } finally { lock.close(); }
+  }
   return {
     target: `fixture:${path.resolve(journalPath)}`,
     async sendAlert({ key, content }) {
-      const journal = read();
-      journal.alerts[key] ??= { id: `fixture-message-${key}`, content };
-      write(journal);
-      return journal.alerts[key].id;
+      return mutate(journal => {
+        journal.alerts[key] ??= { id: `fixture-message-${key}`, content };
+        return journal.alerts[key].id;
+      });
     },
     async findAlert(key) { return read().alerts[key]?.id; },
     async createThread({ messageId, title }) {
-      const journal = read();
-      journal.threads[messageId] ??= { id: `fixture-thread-${messageId}`, title };
-      write(journal);
-      return journal.threads[messageId].id;
+      return mutate(journal => {
+        journal.threads[messageId] ??= { id: `fixture-thread-${messageId}`, title };
+        return journal.threads[messageId].id;
+      });
     },
     async findThread(messageId) { return read().threads[messageId]?.id; },
     async sendThreadMessage({ threadId, key, content }) {
-      const journal = read(); journal.entries ??= {};
-      journal.entries[key] ??= { messageId: `fixture-enrichment-${key}`, threadId, content };
-      write(journal); return journal.entries[key].messageId;
+      return mutate(journal => {
+        journal.entries ??= {};
+        journal.entries[key] ??= { messageId: `fixture-enrichment-${key}`, threadId, content };
+        return journal.entries[key].messageId;
+      });
     },
     async findThreadMessage(threadId, key, attachment) {
       const entry = read().entries?.[key];
@@ -181,11 +197,15 @@ export function createFixtureLinkedInTransport(journalPath: string): LinkedInTra
       return { messageId: entry.messageId, attachmentId: entry.attachmentId };
     },
     async sendAttachment({ threadId, key, filename, bytes, sha256 }) {
-      const journal = read(); journal.entries ??= {};
-      const destination = path.join(path.dirname(journalPath), `fixture-${key}-${path.basename(filename)}`);
-      fs.writeFileSync(destination, bytes, { mode: 0o600 });
-      journal.entries[key] ??= { messageId: `fixture-attachment-${key}`, attachmentId: `fixture-file-${key}`, threadId, filename, bytesLength: bytes.length, sha256 };
-      write(journal); return { messageId: journal.entries[key].messageId, attachmentId: journal.entries[key].attachmentId };
+      return mutate(journal => {
+        journal.entries ??= {};
+        if (!journal.entries[key]) {
+          const destination = path.join(path.dirname(journalPath), `fixture-${key}-${path.basename(filename)}`);
+          fs.writeFileSync(destination, bytes, { mode: 0o600 });
+          journal.entries[key] = { messageId: `fixture-attachment-${key}`, attachmentId: `fixture-file-${key}`, threadId, filename, bytesLength: bytes.length, sha256 };
+        }
+        return { messageId: journal.entries[key].messageId, attachmentId: journal.entries[key].attachmentId };
+      });
     }
   };
 }

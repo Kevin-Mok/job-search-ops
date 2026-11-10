@@ -235,6 +235,11 @@ export function ingestParsedLeads(store: JobStore, parsedLeads: ParsedLeadInput[
         : mergeLead(existing, incoming)
       : incoming;
 
+    if (existing && store.listReviewEvents(existing.leadId).some(event => event.action === "resume_changed")) {
+      finalRecord.resumeMatch = existing.resumeMatch;
+    }
+    finalRecord.draftPacket = generateDraftPacket(finalRecord, finalRecord.resumeMatch);
+
     if (existing) {
       duplicatesMerged += 1;
       updated += 1;

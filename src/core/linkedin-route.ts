@@ -62,6 +62,16 @@ function initialAlert(lead: JobLeadRecord, key: string): string {
   ].join("\n");
 }
 
+function heldForReview(lead: JobLeadRecord): boolean {
+  return lead.locationDecision === "rejected" || lead.reviewStatus === "rejected" || lead.reviewStatus === "duplicate";
+}
+
+function admittedAlertLead(store: JobStore, leadId: string): JobLeadRecord {
+  const lead = store.getLead(leadId);
+  if (!lead || heldForReview(lead)) throw new DiscordRouteError("Current location policy or explicit operator decision holds this posting.", "blocked");
+  return lead;
+}
+
 export async function drainLinkedInAlerts(params: { store: JobStore; transport: LinkedInTransport; now?: Date }) {
   const { store, transport } = params;
   const clock = () => params.now ?? new Date();
@@ -69,7 +79,7 @@ export async function drainLinkedInAlerts(params: { store: JobStore; transport: 
   const timestamp = now.toISOString();
   for (const leadId of new Set(store.linkedin.listMessages().flatMap(message => message.leadIds))) {
     const lead = store.getLead(leadId);
-    if (lead) store.linkedin.queue(transport.target, leadId, lead.locationDecision === "rejected" || lead.reviewStatus === "rejected" || lead.reviewStatus === "duplicate", timestamp);
+    if (lead) store.linkedin.queue(transport.target, leadId, heldForReview(lead), timestamp);
   }
   const backoff = store.linkedin.targetRetryAt(transport.target);
   if (backoff && Date.parse(backoff) > now.getTime()) return { target: transport.target, retryAt: backoff, deliveries: store.linkedin.listDeliveries(transport.target) };
@@ -77,8 +87,6 @@ export async function drainLinkedInAlerts(params: { store: JobStore; transport: 
     const attemptTime = clock();
     const delivery = store.linkedin.claim(transport.target, pending.leadId, attemptTime);
     if (!delivery) continue;
-    const lead = store.getLead(delivery.leadId);
-    if (!lead) throw new Error("Canonical LinkedIn job is missing; restore SQLite state before delivery.");
     let postAttempted = false;
     try {
       const reconcile = delivery.reconcileRequired === true;
@@ -87,6 +95,7 @@ export async function drainLinkedInAlerts(params: { store: JobStore; transport: 
           delivery.messageId = await transport.findAlert(delivery.key);
           if (!delivery.messageId) throw new DiscordRouteError("Alert outcome remains uncertain; matching bot receipt not found in bounded history. Operator review required.", "uncertain");
         } else {
+          const lead = admittedAlertLead(store, delivery.leadId);
           postAttempted = true;
           delivery.reconcileRequired = true;
           store.linkedin.save(delivery);
@@ -99,6 +108,7 @@ export async function drainLinkedInAlerts(params: { store: JobStore; transport: 
         delivery.threadId = await transport.findThread(delivery.messageId);
         if (!delivery.threadId && reconcile && pending.messageId) throw new DiscordRouteError("Thread outcome remains uncertain; operator review required.", "uncertain");
         if (!delivery.threadId) {
+          const lead = admittedAlertLead(store, delivery.leadId);
           postAttempted = true;
           delivery.reconcileRequired = true;
           store.linkedin.save(delivery);

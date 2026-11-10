@@ -2,6 +2,27 @@
 
 Complete the saved-email → fixture Discord → fit → canonical resume/PDF → manual-review route offline. Preserve real candidate inputs and artifacts privately, reuse the portfolio layout read-only, and leave live services and publication behind their existing gates.
 
+## Current review fix round — 2026-11-10
+
+This round addresses seven distinct approved findings, deduplicating repeated review rows. The outer executor retains ownership of full tests, lint, publication and CI. All edits remain in the assigned worktree; no global configuration, private candidate files, live sends or workflow model execution are involved.
+
+- [x] Install locked worktree dependencies with `pnpm install --frozen-lockfile` (exit0); invoke direct Node checks through `pnpm exec node`.
+- [x] Verify all findings against current code and state invariants before implementation. The shared posting hash governs eligibility, queue/process, Codex planning and both attachment admissions. Immutable input/receipt binding governs preparation, handoffs, fit and PDF send/readback. Current admission governs root/thread writes, including recovery. Fresh builds govern all compiled demo consumers. Source refresh governs operator resume choice and final derived packet. Serialized journal mutation governs alerts, threads, fit, attachments and their readback.
+- [x] Add executable regressions before implementation and observe consolidated RED: six files,31 failed,23 passed,1 optional-render skip, exit1. Complete output: ignored `data/review-fixes/red.log`. Missing `dist` reproduced the compiled-consumer defect; other failures were assertion-level behavioral regressions, including four controlled process races.
+- [x] Expand the shared fingerprint with persisted seniority/employment/office/compensation facts; retain historical records and require renewed review.
+- [x] Bind candidate/evidence before the first fit attempt; reject changed bindings without clearing prepared files or receipts. Reject changed delivery keys at the shared sender; unchanged inputs retain readback recovery.
+- [x] Hold expired rejected sends without erasing receipt/uncertainty state; recheck current admission immediately before root/thread writes after awaited operations.
+- [x] Build current artifacts in the demo test setup using existing `pnpm build`; remove the inert `--details` option without new diagnostics.
+- [x] Preserve audited manual resume choices at the shared ingest-save boundary and regenerate the packet from final posting/operator state, including legacy ingestion.
+- [x] Serialize every fixture journal mutation with an existing SQLite immediate transaction on an adjacent private lock DB; repeated attachment keys preserve original bytes.
+- [x] Retrace reported failures and ordinary callers after all source fixes. Fresh approvals/preparation/delivery continue with stable work/thread/receipt identity; changed facts/inputs stop at shared boundaries. Corrected holds still resume via existing reconciliation; current rejections cannot create a new thread. Automatic resume routing remains unchanged without an operator selection. Fixture lookups retain the version1 JSON format and complete atomic snapshots. Remove redundant key comparisons made unnecessary by the new sender guard.
+- [x] Update README, runbook and grouped smoke checks. No tracked configuration change or cross-repository refresh is part of this review phase.
+- [x] Final focused verification: `pnpm exec vitest run tests/job-workflow.test.ts tests/linkedin-route.test.ts tests/linkedin-demo-inputs.test.ts tests/connection-cli.test.ts tests/linkedin-refresh.test.ts tests/linkedin-transport.test.ts --reporter verbose` — exit0, six files passed,55 tests passed,1 existing environment-gated PDF test skipped. The demo setup successfully ran `pnpm build` before its compiled consumers. Complete output: ignored `data/review-fixes/green.log`. No source fixes followed this run.
+
+Risks and limits: older fingerprint approvals require renewed review after upgrade. Previously erased manual selections are not reconstructed. SQLite contention propagates through existing uncertainty handling. Preserve the complete private directory and restore original inputs to reconcile old attempts; do not delete receipts or use new inputs to retry uncertainty. Real rendering/live acceptance and all other pipeline phases remain with the outer executor. A documentation patch context mismatch was recorded in [the review incident](../docs/postmortem/2026-11-10-review-patch-context.md); its canonical cross-repository learning registration remains outside the authorized write boundary.
+
+Review handoff: all seven approved findings are addressed with executable regressions; no commit, push, PR, CI, full-suite or lint phase was executed by this review worker. No private candidate content was read or copied. The outer executor owns environment-enabled rendering and remaining gates.
+
 ## Current Codex-only validation — 2026-11-10
 
 Firstmate inbox015/016 supersede all historical requests below to restore Claude authentication or wait for Claude readiness. The explicit user correction is Codex only. Preserve implementation commit `4a5c2ef331f581a24e745aaa3eb66088cac13562`; no history rewrite, direct push or merge.

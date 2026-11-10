@@ -61,8 +61,7 @@ function readCommonArgs(argv: string[]) {
       "work-id": { type: "string" },
       sha256: { type: "string" },
       "approve-visual": { type: "boolean" },
-      plain: { type: "boolean" },
-      details: { type: "boolean" }
+      plain: { type: "boolean" }
     },
     allowPositionals: true
   });

@@ -9,7 +9,11 @@ Use the local synthetic demo to check replay, per-job review threads, private re
 - Action: Run `node dist/src/cli.js linkedin-state --db data/linkedin-demo/demo.sqlite` after restarting the process.
   Expected: Message/version, delivery attempts/receipts and queued needs_review/ineligible work remain visible. SQLite is authoritative.
 - Action: Exercise a rate-limit or lost-response fixture through the focused route tests, then inspect persisted state before retry.
-  Expected: Retry time is honored; uncertainty survives readback throttling. No second POST is attempted without conclusive readback. Corrected location holds can resume; explicit rejection stops pending sends.
+  Expected: Retry time is honored; uncertainty survives readback throttling. No second POST is attempted without conclusive readback. Corrected location holds can resume; explicit rejection stops pending sends, expired-send recovery and thread creation after asynchronous readback while preserving known receipts.
+- Action: Use two fixture processes against the same private journal, exercising alert, thread, fit and attachment writes through `tests/linkedin-transport.test.ts`, then reopen the journal. Repeat an attachment key with different bytes.
+  Expected: Every successful receipt remains readable after restart, original journal entries survive, and repeating an attachment preserves its first bytes. The adjacent private SQLite file serializes mutations without changing the journal format.
+- Action: Select a manual resume with `set-resume`, then ingest a newer observation of the same posting, including one with changed requirements. Repeat after an explicit rejection.
+  Expected: The chosen resume survives source refresh; the derived packet uses the current target and final operator state. Rejection still prevents delivery.
 
 ## Captured connections and operator provenance
 
@@ -33,7 +37,9 @@ Use the local synthetic demo to check replay, per-job review threads, private re
 - Action: Start a fresh demo output directory with both `--candidate /absolute/private/candidate.json --evidence /absolute/private/approved-evidence.json`, then prepare, inspect every exact PNG and attach with the same directory. Use an approved canonical profile as described in [the runbook](linkedin-workflow.md#canonical-profile-and-approval-boundary).
   Expected: Complete contact/experience/projects/skills/education structure, original entry attribution, explicit Application target header, exact approved bullets and unchanged CMU layout gates. Held summaries/SRC-only statements never appear. Both eligible cases receive their own draft even at fit1. Fixture receipts bind the exact inspected bytes to their original threads; no live sends or job-flow model calls.
 - Action: Repeat connections/intake/prepare/attach in separate processes, then compare state/receipts/hashes. Try supplying one input flag or a changed pair against the same run; exercise prepared-metadata tamper cases in the workflow regression.
-  Expected: Stable job/thread/PDF/attachment IDs with no duplicate sends. Missing/changed pairs cannot overwrite snapshots. Modified prepared claims/profile/hash/required text or changed portfolio source hashes block attachment before upload. Revised private inputs require a fresh run.
+  Expected: Stable job/thread/PDF/attachment IDs with no duplicate sends. Missing/changed pairs cannot overwrite snapshots. Changed evidence/candidate inputs cannot replace prepared work or uncertain fit/PDF delivery records; restoring original inputs allows receipt readback. Modified prepared claims/profile/hash/required text or changed portfolio source hashes block attachment before upload. Revised private inputs require a fresh run.
+- Action: Ingest a newer alert changing only seniority, employment type, office location or compensation, then inspect work and attempt to use the prior prepared work ID.
+  Expected: A new posting version awaits eligibility review. Prior prepared files and receipts remain historical; stale Codex planning and PDF attachment are denied.
 
 ## Live acceptance gate
 

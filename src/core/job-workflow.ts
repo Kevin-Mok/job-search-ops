@@ -44,7 +44,14 @@ export interface JobWorkRecord {
 }
 const digest = (value: string | Buffer): string => crypto.createHash("sha256").update(value).digest("hex");
 export function postingVersion(lead: JobLeadRecord): string {
-  return digest(JSON.stringify({ url: lead.canonicalUrl, title: lead.title, company: lead.company, location: lead.locationRaw, workModel: lead.workModel, description: lead.normalizedDescription, skills: [...lead.skills].sort(), decision: lead.locationDecision }));
+  return digest(JSON.stringify({
+    url: lead.canonicalUrl, title: lead.title, company: lead.company, location: lead.locationRaw,
+    workModel: lead.workModel, officeLocationRaw: lead.officeLocationRaw, seniority: lead.seniority,
+    employmentType: lead.employmentType, compensationText: lead.compensationText,
+    compensationMin: lead.compensationMin, compensationMax: lead.compensationMax,
+    compensationCurrency: lead.compensationCurrency, description: lead.normalizedDescription,
+    skills: [...lead.skills].sort(), decision: lead.locationDecision
+  }));
 }
 
 export function queueLinkedInWork(store: JobStore, target: string): JobWorkRecord[] {
@@ -79,10 +86,11 @@ async function deliver(params: {
 }): Promise<boolean> {
   const { store, work, stage, transport } = params;
   const previous = work[stage];
-  if (previous?.key === params.key && previous.status === "delivered") return true;
+  if (previous && previous.key !== params.key) throw new Error("Delivery inputs changed; preserve the existing receipt and reconcile before using a fresh private run.");
+  if (previous?.status === "delivered") return true;
   if (previous?.retryAt && Date.parse(previous.retryAt) > Date.now()) return false;
-  if (previous?.key === params.key && previous.status === "blocked") return false;
-  const current: WorkDelivery = { key: params.key, status: "sending", attempts: (previous?.attempts ?? 0) + 1, reconcileRequired: previous?.key === params.key && (previous.reconcileRequired || ["sending", "uncertain"].includes(previous.status)) };
+  if (previous?.status === "blocked") return false;
+  const current: WorkDelivery = { key: params.key, status: "sending", attempts: (previous?.attempts ?? 0) + 1, reconcileRequired: previous !== undefined && (previous.reconcileRequired || ["sending", "uncertain"].includes(previous.status)) };
   work[stage] = current;
   store.work.save(work);
   let postAttempted = false;
@@ -140,17 +148,11 @@ export async function processLinkedInWork(params: {
       if (!params.evidence || !params.candidate) throw new Error("Approved private evidence and candidate input are required; every eligible job remains durable.");
       const evidence = validateApprovedFitEvidence(params.evidence);
       const fit = scoreJobFit({ job: lead, postingVersion: work.postingVersion, evidence });
-      if (work.fit?.evidenceVersion !== fit.evidenceVersion) {
-        work.preparedPath = undefined;
-        work.artifact = undefined;
-        work.visualApproval = undefined;
-        work.attachmentDelivery = undefined;
-      }
-      if (work.preparedPath) {
-        const intended = prepareJobResume({ jobId: lead.leadId, postingVersion: work.postingVersion, threadId: work.threadId, candidate: params.candidate, target: { title: lead.title, company: lead.company }, evidence });
-        if (intended.inputHash !== work.inputHash) throw new Error("Candidate/profile inputs changed; preserve this prepared work and use a fresh private run.");
-      }
+      if (work.fit && work.fit.evidenceVersion !== fit.evidenceVersion) throw new Error("Approved evidence changed; preserve this work and its receipts and use a fresh private run.");
+      const intended = prepareJobResume({ jobId: lead.leadId, postingVersion: work.postingVersion, threadId: work.threadId, candidate: params.candidate, target: { title: lead.title, company: lead.company }, evidence });
+      if (work.inputHash && intended.inputHash !== work.inputHash) throw new Error("Candidate/profile inputs changed; preserve this work and its receipts and use a fresh private run.");
       work.fit = fit;
+      work.inputHash = intended.inputHash;
       store.work.save(work);
       const key = digest(`fit|${work.workId}|${fit.evidenceVersion}`).slice(0, 24);
       const backoff = store.linkedin.targetRetryAt(transport.target);
@@ -172,9 +174,8 @@ export async function processLinkedInWork(params: {
       const outputDir = path.join(params.privateDir, work.workId);
       let prepared: PreparedJobResume;
       if (!work.preparedPath) {
-        prepared = prepareJobResume({ jobId: lead.leadId, postingVersion: work.postingVersion, threadId: work.threadId, candidate: params.candidate, target: { title: lead.title, company: lead.company }, evidence });
+        prepared = intended;
         work.preparedPath = path.join(outputDir, "prepared-resume.json");
-        work.inputHash = prepared.inputHash;
         savePrivateJson(work.preparedPath, prepared);
         work.codexHandoffPath = path.join(outputDir, "codex-handoff.json");
         work.codexStatus = "awaiting_authorized_dispatch";
@@ -195,8 +196,8 @@ export async function processLinkedInWork(params: {
         const artifact = await renderPreparedJobResume({ prepared, outputDir, portfolioRoot: params.portfolioRoot });
         const { bytes: _bytes, ...metadata } = artifact;
         work.artifact = metadata;
-        work.status = "awaiting_visual_review";
       }
+      work.status = work.artifact ? "awaiting_visual_review" : "prepared";
       work.lastError = undefined;
     } catch (error) {
       work.status = "blocked";

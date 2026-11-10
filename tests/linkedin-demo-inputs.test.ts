@@ -2,7 +2,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test } from "vitest";
+
+beforeAll(() => {
+  const result = spawnSync("pnpm", ["build"], { encoding: "utf8", timeout: 60_000 });
+  expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+}, 60_000);
 
 function setup() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "linkedin-demo-inputs-"));

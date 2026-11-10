@@ -6,6 +6,15 @@ import { spawnSync } from "node:child_process";
 import { describe, expect, test } from "vitest";
 
 describe("captured connection CLI", () => {
+  test("rejects unsupported --details before opening the database", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "unsupported-details-"));
+    const db = path.join(dir, "jobs.sqlite");
+    const result = spawnSync(process.execPath, ["--import", "tsx", "src/cli.ts", "linkedin-state", "--db", db, "--details"], { encoding: "utf8", timeout: 30_000 });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("--details");
+    expect(fs.existsSync(db)).toBe(false);
+  });
+
   test("connects trusted Gmail capture, durable parser hold, same-thread operator review and blocked Codex plan", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "connection-cli-"));
     const db = path.join(dir, "jobs.sqlite");
