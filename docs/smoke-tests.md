@@ -44,6 +44,10 @@ Use the local synthetic demo to check replay, per-job review threads, private re
   Expected: The nullable column is added without changing existing candidate, audit or delivery records; missing historical text stays unknown and new exact parsed text survives restart. Location classification remains unchanged.
 - Action: Use the admission regressions to revoke a queued job while another delivery awaits, change admission during fit send/readback or rendering, and revoke admission during the real transport's thread lookup before fit/PDF POST.
   Expected: No enrichment for the revoked queued job, no subsequent prepared file or artifact publication after revocation, and zero new POSTs after failed current admission. Any receipt already returned and all existing prepared inputs remain preserved.
+- Action: Revoke eligibility during thread lookup before a fit/PDF POST, inspect the prior absent/definite-retry record, then explicitly restore eligibility for the unchanged posting and repeat the same command. Contrast with an actual transport HTTP403 and an uncertain remote attempt.
+  Expected: Local pre-POST denial preserves the prior record exactly and resumes once after reapproval. HTTP403 remains terminal; uncertainty still requires readback. Prepared inputs, existing receipts and completed deliveries are unchanged; issued remote requests are not promised cancellation.
+- Action: Prepare and render a synthetic canonical profile using both LinkedIn/GitHub contact fields with scheme-less labels and HTTPS URLs; repeat with explicit HTTP, FTP or other non-HTTPS schemes.
+  Expected: Valid labels retain their display text and resolve to HTTPS targets, including uppercase HTTPS schemes. Explicit non-HTTPS schemes are rejected before emitting a broken resume contact link.
 
 ## Live acceptance gate
 

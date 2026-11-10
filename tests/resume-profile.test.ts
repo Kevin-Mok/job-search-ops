@@ -5,6 +5,7 @@ import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { describe, expect, test } from "vitest";
 import { prepareJobResume, renderPreparedJobResume } from "../src/core/job-resume.js";
+import { renderResumeProfile } from "../src/core/resume-profile.js";
 
 const sha256 = (text: string | Buffer): string => crypto.createHash("sha256").update(text).digest("hex");
 function fixture() {
@@ -38,6 +39,38 @@ function fixture() {
 }
 
 describe("canonical resume profile", () => {
+  const invalidContacts = (["linkedin", "github"] as const).flatMap(field => [
+    "http://example.test/profile", "HTTP://example.test/profile", "ftp://example.test/profile", "javascript:alert(1)", "mailto:alex@example.test"
+  ].map(value => ({ field, value })));
+  test.each(invalidContacts)("rejects explicit non-HTTPS $field contact $value during preparation", ({ field, value }) => {
+    const input = fixture();
+    input.candidate.profile.contact[field] = value;
+    expect(() => prepareJobResume(input)).toThrow(/HTTPS|contact URL/i);
+  });
+
+  test.each(invalidContacts)("rejects explicit non-HTTPS $field contact $value during rendering", ({ field, value }) => {
+    const input = fixture();
+    input.candidate.profile.contact[field] = value;
+    expect(() => renderResumeProfile(input.candidate, input.target, input.evidence)).toThrow(/HTTPS|contact URL/i);
+  });
+
+  test.each((["linkedin", "github"] as const).flatMap(field => ["", "https://", "HTTPS://"].map(scheme => ({ field, scheme }))))("preserves $field display labels and HTTPS targets for '$scheme' URLs", ({ field, scheme }) => {
+    const input = fixture();
+    const hostPath = field === "linkedin" ? "linkedin.com/in/alex-example" : "github.com/alex-example";
+    const label = `${scheme}${hostPath}`;
+    input.candidate.profile.contact[field] = label;
+    const prepared = prepareJobResume(input);
+    expect(prepared.candidate.profile!.contact[field]).toBe(label);
+    expect(prepared.requiredText).toContain(label);
+    const html = renderResumeProfile({ ...prepared.candidate, profile: prepared.candidate.profile! }, prepared.target, prepared.claims);
+    const anchors = [...html.matchAll(/<a href="([^"]+)" class="contact-item contact-item-right"><span class="contact-label">([^<]+)<\/span><\/a>/g)];
+    const anchor = anchors.find(match => match[2] === label);
+    expect(anchor).toBeDefined();
+    const target = new URL(anchor![1]);
+    expect(target.protocol).toBe("https:");
+    expect(target.href).toBe(`https://${hostPath}`);
+  });
+
   test("retains baseline metadata and provenance in the immutable prepared input", () => {
     const input = fixture();
     const prepared = prepareJobResume(input);

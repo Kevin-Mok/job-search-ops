@@ -87,7 +87,104 @@ function artifactFor(work: JobWorkRecord, privateDir: string): resumeModule.Vali
   };
 }
 
+async function deliverySetup(stage: "fit" | "pdf") {
+  const session = await setup();
+  let work = session.work[0];
+  if (stage === "pdf") [work] = await processLinkedInWork({ ...session, candidate, evidence });
+  const artifact = artifactFor(work, session.privateDir);
+  if (stage === "pdf") {
+    const { bytes: _bytes, ...metadata } = artifact;
+    work.artifact = metadata;
+    session.store.work.save(work);
+    vi.spyOn(resumeModule, "validateJobResumeArtifact").mockResolvedValue(artifact);
+  }
+  return { ...session, work, artifact };
+}
+
 describe("current admission across enrichment awaits", () => {
+  const denialCases = (["fit", "pdf"] as const).flatMap(stage => (["absent", "retry"] as const).map(prior => ({ stage, prior })));
+  test.each(denialCases)("$stage pre-POST denial preserves $prior delivery and ordinary reapproval resumes once", async ({ stage, prior }) => {
+    const { store, transport: originalTransport, privateDir, work, artifact } = await deliverySetup(stage);
+    const field = stage === "fit" ? "fitDelivery" : "attachmentDelivery";
+    if (prior === "retry") {
+      if (stage === "fit") seedUncertainFit(store, work);
+      const key = stage === "fit" ? work.fitDelivery!.key : crypto.createHash("sha256").update(`pdf|${work.workId}|${artifact.sha256}`).digest("hex").slice(0, 24);
+      work[field] = { key, status: "retry", attempts: 3, retryAt: new Date(0).toISOString(), reconcileRequired: false, lastError: "Prior definite rate limit." };
+      store.work.save(work);
+    }
+    const previous = new JobStore(store.dbPath).work.get(work.workId)![field];
+    const fitReceipt = stage === "pdf" ? store.work.get(work.workId)!.fitDelivery : undefined;
+    const prepared = work.preparedPath ? fs.readFileSync(work.preparedPath) : undefined;
+    const handoff = work.codexHandoffPath ? fs.readFileSync(work.codexHandoffPath) : undefined;
+    let lookups = 0;
+    let posts = 0;
+    const transport = createDiscordLinkedInTransport({ token: "synthetic-token", channelId, fetcher: async (_url, init) => {
+      if (init?.method === "GET") {
+        lookups++;
+        if (lookups === 1) changeAdmission(new JobStore(store.dbPath), work, "eligibility");
+        return Response.json({ id: work.threadId, parent_id: channelId, type: 11 });
+      }
+      posts++;
+      if (stage === "pdf") {
+        const body = JSON.parse(String((init!.body as FormData).get("payload_json")));
+        return Response.json({ id: "555555555555555555", channel_id: work.threadId, attachments: [{ id: "666666666666666666", filename: body.attachments[0].filename, size: artifact.bytes.length }] });
+      }
+      return Response.json({ id: "555555555555555555", channel_id: work.threadId });
+    } });
+    const run = async () => {
+      if (stage === "fit") await processLinkedInWork({ store, transport, privateDir, candidate, evidence });
+      else await attachLinkedInResume({ store, transport, workId: work.workId, approvedSha256: artifact.sha256, portfolioRoot: privateDir }).catch(() => undefined);
+    };
+    await run();
+    const denied = new JobStore(store.dbPath).work.get(work.workId)!;
+    expect(posts).toBe(0);
+    expect(lookups).toBe(1);
+    expect(denied.eligibility).toBe("needs_review");
+    expect(denied[field]).toEqual(previous);
+    if (stage === "pdf") {
+      expect(denied.fitDelivery).toEqual(fitReceipt);
+      expect(denied.artifact).toEqual(work.artifact);
+      expect(fs.readFileSync(work.preparedPath!)).toEqual(prepared);
+      expect(fs.readFileSync(work.codexHandoffPath!)).toEqual(handoff);
+    } else expect(denied.preparedPath).toBeUndefined();
+    store.work.decideEligibility({ leadId: work.leadId, postingVersion: work.postingVersion, eligibility: "eligible", reason: "Synthetic explicit reapproval." });
+    queueLinkedInWork(store, originalTransport.target);
+    await run();
+    const resumed = new JobStore(store.dbPath).work.get(work.workId)!;
+    expect(resumed[field]).toMatchObject({ status: "delivered", attempts: (previous?.attempts ?? 0) + 1, messageId: "555555555555555555", reconcileRequired: false });
+    expect(resumed.status).toBe(stage === "fit" ? "prepared" : "delivered");
+    expect(lookups).toBe(2);
+    expect(posts).toBe(1);
+    await run();
+    expect(posts).toBe(1);
+    expect(new JobStore(store.dbPath).work.get(work.workId)![field]).toEqual(resumed[field]);
+  });
+
+  test.each(["fit", "pdf"] as const)("real %s HTTP403 remains terminal after eligibility toggles", async stage => {
+    const { store, transport: originalTransport, privateDir, work, artifact } = await deliverySetup(stage);
+    const field = stage === "fit" ? "fitDelivery" : "attachmentDelivery";
+    let posts = 0;
+    const transport = createDiscordLinkedInTransport({ token: "synthetic-token", channelId, fetcher: async (_url, init) => {
+      if (init?.method === "GET") return Response.json({ id: work.threadId, parent_id: channelId, type: 11 });
+      posts++;
+      return Response.json({ message: "Synthetic permission denial" }, { status: 403 });
+    } });
+    const run = async () => {
+      if (stage === "fit") await processLinkedInWork({ store, transport, privateDir, candidate, evidence });
+      else await attachLinkedInResume({ store, transport, workId: work.workId, approvedSha256: artifact.sha256, portfolioRoot: privateDir }).catch(() => undefined);
+    };
+    await run();
+    const blocked = new JobStore(store.dbPath).work.get(work.workId)![field];
+    expect(blocked).toMatchObject({ status: "blocked", attempts: 1, reconcileRequired: false });
+    expect(blocked?.lastError).toContain("403");
+    changeAdmission(store, work, "eligibility");
+    store.work.decideEligibility({ leadId: work.leadId, postingVersion: work.postingVersion, eligibility: "eligible", reason: "Synthetic explicit reapproval." });
+    queueLinkedInWork(store, originalTransport.target);
+    await run();
+    expect(posts).toBe(1);
+    expect(new JobStore(store.dbPath).work.get(work.workId)![field]).toEqual(blocked);
+  });
+
   test.each(changes)("a queued job changed by %s during another job's delivery is not enriched", async change => {
     const { store, transport, privateDir, work: [first, second] } = await setup(2);
     const sends: string[] = [];

@@ -60,6 +60,9 @@ function url(value: unknown, label: string): string {
   if (parsed.protocol !== "https:" || parsed.username || parsed.password) throw new Error(`Resume profile ${label} must be an absolute HTTPS URL without credentials.`);
   return result;
 }
+function contactUrl(label: string): string {
+  return url(/^[a-z][a-z0-9+.-]*:/i.test(label) ? label : `https://${label}`, "contact URL");
+}
 function optionalUrl(entry: Record<string, unknown>, key: string): Record<string, string> {
   return entry[key] === undefined ? {} : { [key]: url(entry[key], `${key} URL`) };
 }
@@ -80,7 +83,7 @@ export function prepareResumeProfile(value: unknown, evidence: ApprovedResumeCla
   if (new Set(sources.map(source => source.path)).size !== sources.length) throw new Error("Resume profile source paths must be unique.");
   const contactInput = object(input.contact, ["phone", "linkedin", "github"], "contact");
   const contact = { phone: text(contactInput.phone, "phone", 80), linkedin: text(contactInput.linkedin, "LinkedIn", 300), github: text(contactInput.github, "GitHub", 300) };
-  for (const label of [contact.linkedin, contact.github]) url(/^https:\/\//.test(label) ? label : `https://${label}`, "contact URL");
+  for (const label of [contact.linkedin, contact.github]) contactUrl(label);
   const titlesInput = object(input.sectionTitles, ["experience", "projects", "skills", "education", "otherExperience"], "section titles");
   const sectionTitles: CanonicalResumeProfile["sectionTitles"] = {
     experience: text(titlesInput.experience, "experience heading", 100), projects: text(titlesInput.projects, "projects heading", 100),
@@ -143,7 +146,6 @@ export function renderResumeProfile(candidate: { name: string; email: string; pr
   const { profile } = candidate;
   const byId = new Map(claims.map(claim => [claim.id, claim]));
   const link = (href: string, label: string, className: string): string => `<a href="${escapeHtml(href)}" class="${className}">${escapeHtml(label)}</a>`;
-  const website = (label: string): string => /^https:\/\//.test(label) ? label : `https://${label}`;
   const contact = (href: string, label: string, side: string): string => `<a href="${escapeHtml(href)}" class="contact-item contact-item-${side}"><span class="contact-label">${escapeHtml(label)}</span></a>`;
   const bullets = (ids: string[]): string => ids.length ? `<ul class="resume-bullets">${ids.map(id => `<li>${emphasized(byId.get(id)!.claim)}</li>`).join("")}</ul>` : "";
   const technologies = (languages: string[]): string => languages.length ? `<span class="entry-tech-inline">&lt;${languages.map(escapeHtml).join(", ")}&gt;</span>` : "";
@@ -153,5 +155,5 @@ export function renderResumeProfile(candidate: { name: string; email: string; pr
   const experience = section(profile.sectionTitles.experience, profile.experience.map(work).join(""));
   const projects = section(profile.sectionTitles.projects, profile.projects.map(project).join(""));
   const boldSkills = new Set(profile.skillsBold ?? profile.skills);
-  return `<main class="resume-latex resume-latex--pdf resume-variant-web-dev"><header class="resume-header"><h1 class="resume-name">${escapeHtml(candidate.name)}</h1><div class="resume-contact-columns"><div class="resume-contact-column resume-contact-column-left">${contact(`tel:${profile.contact.phone}`, profile.contact.phone, "left")}${contact(`mailto:${candidate.email}`, candidate.email, "left")}</div><div class="resume-contact-column resume-contact-column-right">${contact(website(profile.contact.linkedin), profile.contact.linkedin, "right")}${contact(website(profile.contact.github), profile.contact.github, "right")}</div></div><p class="resume-summary">Application target: ${escapeHtml(target.title)} | ${escapeHtml(target.company)}</p></header>${profile.primarySectionOrder === "projects-first" ? projects + experience : experience + projects}${profile.otherExperience?.length ? section(profile.sectionTitles.otherExperience ?? "Other Work Experience", profile.otherExperience.map(work).join("")) : ""}${section(profile.sectionTitles.skills, `<p class="resume-skills-inline">${profile.skills.map(skill => boldSkills.has(skill) ? `<strong>${escapeHtml(skill)}</strong>` : escapeHtml(skill)).join(", ")}</p>`)}${section(profile.sectionTitles.education, profile.education.map(entry => `<div class="resume-education"><div class="education-header"><h3 class="education-institution">${escapeHtml(entry.institution)}</h3><span class="entry-date">${escapeHtml(entry.date)}</span></div><p class="education-details">${escapeHtml(entry.degree)} — ${escapeHtml(entry.gpa)}</p></div>`).join(""))}</main>`;
+  return `<main class="resume-latex resume-latex--pdf resume-variant-web-dev"><header class="resume-header"><h1 class="resume-name">${escapeHtml(candidate.name)}</h1><div class="resume-contact-columns"><div class="resume-contact-column resume-contact-column-left">${contact(`tel:${profile.contact.phone}`, profile.contact.phone, "left")}${contact(`mailto:${candidate.email}`, candidate.email, "left")}</div><div class="resume-contact-column resume-contact-column-right">${contact(contactUrl(profile.contact.linkedin), profile.contact.linkedin, "right")}${contact(contactUrl(profile.contact.github), profile.contact.github, "right")}</div></div><p class="resume-summary">Application target: ${escapeHtml(target.title)} | ${escapeHtml(target.company)}</p></header>${profile.primarySectionOrder === "projects-first" ? projects + experience : experience + projects}${profile.otherExperience?.length ? section(profile.sectionTitles.otherExperience ?? "Other Work Experience", profile.otherExperience.map(work).join("")) : ""}${section(profile.sectionTitles.skills, `<p class="resume-skills-inline">${profile.skills.map(skill => boldSkills.has(skill) ? `<strong>${escapeHtml(skill)}</strong>` : escapeHtml(skill)).join(", ")}</p>`)}${section(profile.sectionTitles.education, profile.education.map(entry => `<div class="resume-education"><div class="education-header"><h3 class="education-institution">${escapeHtml(entry.institution)}</h3><span class="entry-date">${escapeHtml(entry.date)}</span></div><p class="education-details">${escapeHtml(entry.degree)} — ${escapeHtml(entry.gpa)}</p></div>`).join(""))}</main>`;
 }

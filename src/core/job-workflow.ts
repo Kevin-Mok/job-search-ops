@@ -62,11 +62,13 @@ function postingEligibility(store: JobStore, lead: JobLeadRecord, version: strin
   return { eligibility, eligibilityReason };
 }
 
+class WorkAdmissionError extends Error {}
+
 function assertCurrentWork(store: JobStore, work: JobWorkRecord): JobLeadRecord {
   const lead = store.getLead(work.leadId);
-  if (!lead || postingVersion(lead) !== work.postingVersion) throw new DiscordRouteError("Posting changed; review the latest work version before enrichment.", "blocked");
+  if (!lead || postingVersion(lead) !== work.postingVersion) throw new WorkAdmissionError("Posting changed; review the latest work version before enrichment.");
   Object.assign(work, postingEligibility(store, lead, work.postingVersion));
-  if (work.eligibility !== "eligible" || lead.locationDecision !== "accepted") throw new DiscordRouteError("Explicit current eligibility approval is required before enrichment.", "blocked");
+  if (work.eligibility !== "eligible" || lead.locationDecision !== "accepted") throw new WorkAdmissionError("Explicit current eligibility approval is required before enrichment.");
   return lead;
 }
 
@@ -125,6 +127,11 @@ async function deliver(params: {
     current.messageId = receipt.messageId;
     current.attachmentId = receipt.attachmentId;
   } catch (error) {
+    if (error instanceof WorkAdmissionError) {
+      work[stage] = previous;
+      store.work.save(work);
+      throw error;
+    }
     const known = error instanceof DiscordRouteError ? error : new DiscordRouteError("Enrichment send interrupted; reconcile before retry.", "uncertain");
     current.status = known.certainty;
     if (postAttempted && known.certainty !== "uncertain") current.reconcileRequired = false;
