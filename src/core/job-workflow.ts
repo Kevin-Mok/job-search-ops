@@ -46,12 +46,28 @@ const digest = (value: string | Buffer): string => crypto.createHash("sha256").u
 export function postingVersion(lead: JobLeadRecord): string {
   return digest(JSON.stringify({
     url: lead.canonicalUrl, title: lead.title, company: lead.company, location: lead.locationRaw,
-    workModel: lead.workModel, officeLocationRaw: lead.officeLocationRaw, seniority: lead.seniority,
+    workModel: lead.workModel, officeLocationRaw: lead.officeLocationRaw, remoteEligibility: lead.remoteEligibility, seniority: lead.seniority,
     employmentType: lead.employmentType, compensationText: lead.compensationText,
     compensationMin: lead.compensationMin, compensationMax: lead.compensationMax,
     compensationCurrency: lead.compensationCurrency, description: lead.normalizedDescription,
     skills: [...lead.skills].sort(), decision: lead.locationDecision
   }));
+}
+
+function postingEligibility(store: JobStore, lead: JobLeadRecord, version: string): Pick<JobWorkRecord, "eligibility" | "eligibilityReason"> {
+  const decision = store.work.decision(lead.leadId, version);
+  const operatorHeld = ["rejected", "duplicate"].includes(lead.reviewStatus);
+  const eligibility = lead.locationDecision === "rejected" || operatorHeld ? "ineligible" : decision?.eligibility ?? "needs_review";
+  const eligibilityReason = lead.locationDecision === "rejected" ? "Existing location policy rejected this posting." : operatorHeld ? "Explicit operator review holds this posting." : decision?.reason ?? "Operator must confirm work authorization and all hard requirements; alert text alone is insufficient.";
+  return { eligibility, eligibilityReason };
+}
+
+function assertCurrentWork(store: JobStore, work: JobWorkRecord): JobLeadRecord {
+  const lead = store.getLead(work.leadId);
+  if (!lead || postingVersion(lead) !== work.postingVersion) throw new DiscordRouteError("Posting changed; review the latest work version before enrichment.", "blocked");
+  Object.assign(work, postingEligibility(store, lead, work.postingVersion));
+  if (work.eligibility !== "eligible" || lead.locationDecision !== "accepted") throw new DiscordRouteError("Explicit current eligibility approval is required before enrichment.", "blocked");
+  return lead;
 }
 
 export function queueLinkedInWork(store: JobStore, target: string): JobWorkRecord[] {
@@ -61,15 +77,12 @@ export function queueLinkedInWork(store: JobStore, target: string): JobWorkRecor
     const lead = store.getLead(leadId);
     if (!lead) continue;
     const version = postingVersion(lead);
-    const decision = store.work.decision(leadId, version);
-    const operatorHeld = ["rejected", "duplicate"].includes(lead.reviewStatus);
-    const eligibility = lead.locationDecision === "rejected" || operatorHeld ? "ineligible" : decision?.eligibility ?? "needs_review";
-    const reason = lead.locationDecision === "rejected" ? "Existing location policy rejected this posting." : operatorHeld ? "Explicit operator review holds this posting." : decision?.reason ?? "Operator must confirm work authorization and all hard requirements; alert text alone is insufficient.";
+    const { eligibility, eligibilityReason } = postingEligibility(store, lead, version);
     const delivery = deliveries.find(row => row.leadId === leadId && row.status === "delivered");
-    const work = store.work.ensure({ schemaVersion: 1, leadId, postingVersion: version, target, threadId: delivery?.threadId, eligibility, eligibilityReason: reason, status: eligibility === "eligible" ? "queued" : eligibility, updatedAt: new Date().toISOString() });
-    if (work.eligibility !== eligibility || work.eligibilityReason !== reason || work.threadId !== delivery?.threadId) {
+    const work = store.work.ensure({ schemaVersion: 1, leadId, postingVersion: version, target, threadId: delivery?.threadId, eligibility, eligibilityReason, status: eligibility === "eligible" ? "queued" : eligibility, updatedAt: new Date().toISOString() });
+    if (work.eligibility !== eligibility || work.eligibilityReason !== eligibilityReason || work.threadId !== delivery?.threadId) {
       work.eligibility = eligibility;
-      work.eligibilityReason = reason;
+      work.eligibilityReason = eligibilityReason;
       work.threadId = delivery?.threadId;
       if (eligibility !== "eligible") work.status = eligibility;
       else if (["needs_review", "ineligible"].includes(work.status)) work.status = "queued";
@@ -85,6 +98,7 @@ async function deliver(params: {
   send: () => Promise<ThreadMessageReceipt>;
 }): Promise<boolean> {
   const { store, work, stage, transport } = params;
+  assertCurrentWork(store, work);
   const previous = work[stage];
   if (previous && previous.key !== params.key) throw new Error("Delivery inputs changed; preserve the existing receipt and reconcile before using a fresh private run.");
   if (previous?.status === "delivered") return true;
@@ -139,11 +153,10 @@ export async function processLinkedInWork(params: {
   queueLinkedInWork(store, transport.target);
   for (const pending of store.work.list().filter(work => work.target === transport.target)) {
     if (pending.status === "delivered" || pending.eligibility !== "eligible") continue;
-    const lead = store.getLead(pending.leadId);
-    if (!lead || postingVersion(lead) !== pending.postingVersion) continue;
     const work = store.work.claim(pending.workId);
     if (!work) continue;
     try {
+      const lead = assertCurrentWork(store, work);
       if (!work.threadId) throw new Error("Initial alert/thread is not delivered; resume work remains queued.");
       if (!params.evidence || !params.candidate) throw new Error("Approved private evidence and candidate input are required; every eligible job remains durable.");
       const evidence = validateApprovedFitEvidence(params.evidence);
@@ -168,9 +181,12 @@ export async function processLinkedInWork(params: {
             `Gaps: ${fit.gaps.join(", ") || "none declared"}`,
             `job-ops-key:${key}`
           ].join("\n");
-          return { messageId: await transport.sendThreadMessage({ threadId: work.threadId!, key, content: content.length > 2000 ? content.slice(0, 1900) + `\njob-ops-key:${key}` : content }) };
+          const beforeSend = () => { assertCurrentWork(store, work); };
+          beforeSend();
+          return { messageId: await transport.sendThreadMessage({ threadId: work.threadId!, key, content: content.length > 2000 ? content.slice(0, 1900) + `\njob-ops-key:${key}` : content, beforeSend }) };
         } });
       }
+      assertCurrentWork(store, work);
       const outputDir = path.join(params.privateDir, work.workId);
       let prepared: PreparedJobResume;
       if (!work.preparedPath) {
@@ -194,6 +210,7 @@ export async function processLinkedInWork(params: {
       }
       if (params.portfolioRoot && !work.artifact) {
         const artifact = await renderPreparedJobResume({ prepared, outputDir, portfolioRoot: params.portfolioRoot });
+        assertCurrentWork(store, work);
         const { bytes: _bytes, ...metadata } = artifact;
         work.artifact = metadata;
       }
@@ -219,22 +236,21 @@ export async function attachLinkedInResume(params: {
   const work = store.work.claim(params.workId);
   if (!work) throw new Error("Resume work is missing or leased by another worker.");
   try {
-    const lead = store.getLead(work.leadId);
-    if (!lead || postingVersion(lead) !== work.postingVersion) throw new Error("Posting changed; review the latest work version before attaching.");
-    const decision = store.work.decision(work.leadId, work.postingVersion);
-    if (decision?.eligibility !== "eligible" || lead.locationDecision !== "accepted" || ["rejected", "duplicate"].includes(lead.reviewStatus)) throw new Error("Explicit current eligibility approval is required before attachment.");
+    assertCurrentWork(store, work);
     if (work.target !== transport.target || !work.threadId || !work.artifact || !work.preparedPath) throw new Error("Resume work has no bound artifact/thread for this target.");
     if (params.approvedSha256 !== work.artifact.sha256) throw new Error("Visual approval must name the exact pending PDF SHA-256.");
     if (work.fitDelivery?.status !== "delivered") throw new Error("Fit explanation must be delivered in the same thread before the PDF.");
     const prepared = JSON.parse(fs.readFileSync(work.preparedPath, "utf8")) as PreparedJobResume;
     if (prepared.inputHash !== work.inputHash || prepared.jobId !== work.leadId || prepared.postingVersion !== work.postingVersion || prepared.threadId !== work.threadId) throw new Error("Prepared resume binding changed; reprepare before attachment.");
     const checked = await verifyPreparedJobResume(prepared, params.portfolioRoot);
+    assertCurrentWork(store, work);
     const artifact = await validateJobResumeArtifact({
       pdfPath: work.artifact.pdfPath, jobId: work.leadId, postingVersion: work.postingVersion, threadId: work.threadId,
       candidateName: prepared.candidate.name, targetTitle: prepared.target.title, targetCompany: prepared.target.company,
       requiredText: checked.requiredText, expectedSha256: params.approvedSha256,
       outputDir: path.dirname(work.artifact.pdfPath), portfolioRoot: params.portfolioRoot
     });
+    assertCurrentWork(store, work);
     if (artifact.bindingHash !== work.artifact.bindingHash) throw new Error("Resume artifact binding mismatch.");
     work.visualApproval = { sha256: artifact.sha256, approvedAt: new Date().toISOString() };
     const filename = `resume-${work.workId.slice(0, 12)}-${artifact.sha256.slice(0, 12)}.pdf`;
@@ -245,14 +261,12 @@ export async function attachLinkedInResume(params: {
       attachment: { filename, bytesLength: artifact.bytes.length },
       send: async () => {
         if (!transport.sendAttachment) throw new DiscordRouteError("Transport cannot attach PDF files.", "blocked");
-        const currentLead = store.getLead(work.leadId);
-        const currentDecision = store.work.decision(work.leadId, work.postingVersion);
-        if (!currentLead || postingVersion(currentLead) !== work.postingVersion || currentDecision?.eligibility !== "eligible" || currentLead.locationDecision !== "accepted" || ["rejected", "duplicate"].includes(currentLead.reviewStatus)) {
-          throw new DiscordRouteError("Posting or eligibility changed during PDF validation; review the current job before attachment.", "blocked");
-        }
-        return transport.sendAttachment({ threadId: work.threadId!, key, filename, bytes: artifact.bytes, sha256: artifact.sha256 });
+        const beforeSend = () => { assertCurrentWork(store, work); };
+        beforeSend();
+        return transport.sendAttachment({ threadId: work.threadId!, key, filename, bytes: artifact.bytes, sha256: artifact.sha256, beforeSend });
       }
     });
+    assertCurrentWork(store, work);
     if (delivered) { work.status = "delivered"; work.lastError = undefined; }
     return work;
   } catch (error) {

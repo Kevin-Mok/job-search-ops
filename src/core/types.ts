@@ -116,6 +116,7 @@ export interface JobLeadRecord {
   locationRaw: string;
   workModel: WorkModel;
   officeLocationRaw?: string;
+  remoteEligibility?: string;
   seniority: Seniority;
   employmentType?: string;
   compensationText?: string;

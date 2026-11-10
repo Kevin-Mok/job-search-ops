@@ -38,8 +38,12 @@ Use the local synthetic demo to check replay, per-job review threads, private re
   Expected: Complete contact/experience/projects/skills/education structure, original entry attribution, explicit Application target header, exact approved bullets and unchanged CMU layout gates. Held summaries/SRC-only statements never appear. Both eligible cases receive their own draft even at fit1. Fixture receipts bind the exact inspected bytes to their original threads; no live sends or job-flow model calls.
 - Action: Repeat connections/intake/prepare/attach in separate processes, then compare state/receipts/hashes. Try supplying one input flag or a changed pair against the same run; exercise prepared-metadata tamper cases in the workflow regression.
   Expected: Stable job/thread/PDF/attachment IDs with no duplicate sends. Missing/changed pairs cannot overwrite snapshots. Changed evidence/candidate inputs cannot replace prepared work or uncertain fit/PDF delivery records; restoring original inputs allows receipt readback. Modified prepared claims/profile/hash/required text or changed portfolio source hashes block attachment before upload. Revised private inputs require a fresh run.
-- Action: Ingest a newer alert changing only seniority, employment type, office location or compensation, then inspect work and attempt to use the prior prepared work ID.
+- Action: Ingest a newer alert changing only seniority, employment type, office location, compensation or `Remote eligibility` text, including a change from `Canada` to `Canada; security clearance required`, then reopen SQLite and attempt to use the prior prepared work ID.
   Expected: A new posting version awaits eligibility review. Prior prepared files and receipts remain historical; stale Codex planning and PDF attachment are denied.
+- Action: Open an existing database created before raw remote-eligibility storage, then ingest a new observation with that field.
+  Expected: The nullable column is added without changing existing candidate, audit or delivery records; missing historical text stays unknown and new exact parsed text survives restart. Location classification remains unchanged.
+- Action: Use the admission regressions to revoke a queued job while another delivery awaits, change admission during fit send/readback or rendering, and revoke admission during the real transport's thread lookup before fit/PDF POST.
+  Expected: No enrichment for the revoked queued job, no subsequent prepared file or artifact publication after revocation, and zero new POSTs after failed current admission. Any receipt already returned and all existing prepared inputs remain preserved.
 
 ## Live acceptance gate
 

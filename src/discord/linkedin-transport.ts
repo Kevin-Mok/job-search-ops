@@ -10,9 +10,9 @@ export interface LinkedInTransport {
   findAlert(key: string): Promise<string | undefined>;
   createThread(payload: { messageId: string; title: string }): Promise<string>;
   findThread(messageId: string): Promise<string | undefined>;
-  sendThreadMessage?(payload: { threadId: string; key: string; content: string }): Promise<string>;
+  sendThreadMessage?(payload: { threadId: string; key: string; content: string; beforeSend?: () => void }): Promise<string>;
   findThreadMessage?(threadId: string, key: string, attachment?: { filename: string; bytesLength: number }): Promise<ThreadMessageReceipt | undefined>;
-  sendAttachment?(payload: { threadId: string; key: string; filename: string; bytes: Buffer; sha256: string }): Promise<ThreadMessageReceipt>;
+  sendAttachment?(payload: { threadId: string; key: string; filename: string; bytes: Buffer; sha256: string; beforeSend?: () => void }): Promise<ThreadMessageReceipt>;
 }
 
 export class DiscordRouteError extends Error {
@@ -94,8 +94,9 @@ export function createDiscordLinkedInTransport(params: {
       if (receipt.parent_id !== channelId || receipt.type !== 11) throw new DiscordRouteError("Unexpected Discord thread destination/type.", "uncertain");
       return snowflake(receipt.id);
     },
-    async sendThreadMessage({ threadId, key, content }) {
+    async sendThreadMessage({ threadId, key, content, beforeSend }) {
       await assertThread(threadId);
+      beforeSend?.();
       const receipt = record(await request(`/channels/${snowflake(threadId)}/messages`, {
         content, nonce: key, enforce_nonce: true,
         allowed_mentions: { parse: [], users: [], roles: [], replied_user: false }, flags: 4
@@ -115,7 +116,7 @@ export function createDiscordLinkedInTransport(params: {
       }
       return { messageId: snowflake(match.id) };
     },
-    async sendAttachment({ threadId, key, filename, bytes, sha256 }) {
+    async sendAttachment({ threadId, key, filename, bytes, sha256, beforeSend }) {
       if (bytes.length > 8 * 1024 * 1024) throw new DiscordRouteError("PDF exceeds the conservative 8 MiB upload cap.", "blocked");
       await assertThread(threadId);
       const form = new FormData();
@@ -125,6 +126,7 @@ export function createDiscordLinkedInTransport(params: {
         attachments: [{ id: 0, filename }], flags: 4
       }));
       form.append("files[0]", new Blob([new Uint8Array(bytes)], { type: "application/pdf" }), filename);
+      beforeSend?.();
       const receipt = record(await request(`/channels/${snowflake(threadId)}/messages`, form));
       if (receipt.channel_id !== threadId || !Array.isArray(receipt.attachments) || receipt.attachments.length !== 1) throw new DiscordRouteError("Discord PDF attachment receipt missing; do not claim delivery.", "uncertain");
       const file = record(receipt.attachments[0]);
@@ -184,8 +186,9 @@ export function createFixtureLinkedInTransport(journalPath: string): LinkedInTra
       });
     },
     async findThread(messageId) { return read().threads[messageId]?.id; },
-    async sendThreadMessage({ threadId, key, content }) {
+    async sendThreadMessage({ threadId, key, content, beforeSend }) {
       return mutate(journal => {
+        beforeSend?.();
         journal.entries ??= {};
         journal.entries[key] ??= { messageId: `fixture-enrichment-${key}`, threadId, content };
         return journal.entries[key].messageId;
@@ -196,8 +199,9 @@ export function createFixtureLinkedInTransport(journalPath: string): LinkedInTra
       if (!entry || entry.threadId !== threadId || (attachment && (entry.filename !== attachment.filename || entry.bytesLength !== attachment.bytesLength))) return undefined;
       return { messageId: entry.messageId, attachmentId: entry.attachmentId };
     },
-    async sendAttachment({ threadId, key, filename, bytes, sha256 }) {
+    async sendAttachment({ threadId, key, filename, bytes, sha256, beforeSend }) {
       return mutate(journal => {
+        beforeSend?.();
         journal.entries ??= {};
         if (!journal.entries[key]) {
           const destination = path.join(path.dirname(journalPath), `fixture-${key}-${path.basename(filename)}`);

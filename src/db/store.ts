@@ -55,6 +55,7 @@ function toLeadRecord(row: SqlRow): JobLeadRecord {
     locationRaw: String(row.location_raw),
     workModel: String(row.work_model) as JobLeadRecord["workModel"],
     officeLocationRaw: row.office_location_raw ? String(row.office_location_raw) : undefined,
+    remoteEligibility: typeof row.remote_eligibility_raw === "string" ? row.remote_eligibility_raw : undefined,
     seniority: String(row.seniority) as JobLeadRecord["seniority"],
     employmentType: row.employment_type ? String(row.employment_type) : undefined,
     compensationText: row.compensation_text ? String(row.compensation_text) : undefined,
@@ -224,6 +225,7 @@ export class JobStore {
         location_raw TEXT NOT NULL,
         work_model TEXT NOT NULL,
         office_location_raw TEXT,
+        remote_eligibility_raw TEXT,
         seniority TEXT NOT NULL,
         employment_type TEXT,
         compensation_text TEXT,
@@ -376,6 +378,10 @@ export class JobStore {
         UNIQUE(target, post_id)
       );
     `);
+    this.db.transaction(() => {
+      const columns = this.db.pragma("table_info(job_leads)") as { name: string }[];
+      if (!columns.some(column => column.name === "remote_eligibility_raw")) this.db.exec("ALTER TABLE job_leads ADD COLUMN remote_eligibility_raw TEXT");
+    }).immediate();
   }
 
   findLeadByCanonicalUrl(url: string): JobLeadRecord | undefined {
@@ -422,6 +428,7 @@ export class JobStore {
           location_raw,
           work_model,
           office_location_raw,
+          remote_eligibility_raw,
           seniority,
           employment_type,
           compensation_text,
@@ -458,6 +465,7 @@ export class JobStore {
           @locationRaw,
           @workModel,
           @officeLocationRaw,
+          @remoteEligibility,
           @seniority,
           @employmentType,
           @compensationText,
@@ -494,6 +502,7 @@ export class JobStore {
           location_raw = excluded.location_raw,
           work_model = excluded.work_model,
           office_location_raw = excluded.office_location_raw,
+          remote_eligibility_raw = excluded.remote_eligibility_raw,
           seniority = excluded.seniority,
           employment_type = excluded.employment_type,
           compensation_text = excluded.compensation_text,
@@ -521,6 +530,7 @@ export class JobStore {
       `)
       .run({
         ...lead,
+        remoteEligibility: lead.remoteEligibility ?? null,
         skillsJson: encodeJson(lead.skills),
         riskFlagsJson: encodeJson(lead.riskFlags),
         resumeMatchJson: encodeJson(lead.resumeMatch),

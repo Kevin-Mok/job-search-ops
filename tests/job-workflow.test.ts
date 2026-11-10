@@ -258,8 +258,9 @@ describe("durable per-job workflow", () => {
     let uploads = 0;
     transport.sendAttachment = async () => { uploads += 1; return { messageId: "must-not-send", attachmentId: "must-not-send" }; };
     try {
-      const result = await attachLinkedInResume({ store, transport, workId: work.workId, approvedSha256: artifact.sha256, portfolioRoot: privateDir });
-      expect(result.attachmentDelivery?.status).toBe("blocked");
+      await expect(attachLinkedInResume({ store, transport, workId: work.workId, approvedSha256: artifact.sha256, portfolioRoot: privateDir })).rejects.toThrow(/eligibility/i);
+      expect(store.work.get(work.workId)?.status).toBe("blocked");
+      expect(store.work.get(work.workId)?.attachmentDelivery).toBeUndefined();
       expect(uploads).toBe(0);
     } finally { validator.mockRestore(); }
   });
