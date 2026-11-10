@@ -66,9 +66,11 @@ function heldForReview(lead: JobLeadRecord): boolean {
   return lead.locationDecision === "rejected" || lead.reviewStatus === "rejected" || lead.reviewStatus === "duplicate";
 }
 
+class AlertAdmissionError extends Error {}
+
 function admittedAlertLead(store: JobStore, leadId: string): JobLeadRecord {
   const lead = store.getLead(leadId);
-  if (!lead || heldForReview(lead)) throw new DiscordRouteError("Current location policy or explicit operator decision holds this posting.", "blocked");
+  if (!lead || heldForReview(lead)) throw new AlertAdmissionError("Current location policy or explicit operator decision holds this posting.");
   return lead;
 }
 
@@ -120,13 +122,18 @@ export async function drainLinkedInAlerts(params: { store: JobStore; transport: 
       delivery.lastError = undefined;
       delivery.retryAt = undefined;
     } catch (error) {
-      const known = error instanceof DiscordRouteError ? error : new DiscordRouteError("Discord operation interrupted; reconcile before retry.", "uncertain");
-      delivery.status = known.certainty;
-      if (postAttempted && known.certainty !== "uncertain") delivery.reconcileRequired = false;
-      delivery.lastError = known.message;
-      if (known.certainty === "retry") {
-        delivery.retryAt = new Date(clock().getTime() + (known.retryAfterMs ?? 60_000)).toISOString();
-        store.linkedin.deferTarget(transport.target, delivery.retryAt);
+      if (error instanceof AlertAdmissionError) {
+        delivery.status = "held";
+        delivery.lastError = error.message;
+      } else {
+        const known = error instanceof DiscordRouteError ? error : new DiscordRouteError("Discord operation interrupted; reconcile before retry.", "uncertain");
+        delivery.status = known.certainty;
+        if (postAttempted && known.certainty !== "uncertain") delivery.reconcileRequired = false;
+        delivery.lastError = known.message;
+        if (known.certainty === "retry") {
+          delivery.retryAt = new Date(clock().getTime() + (known.retryAfterMs ?? 60_000)).toISOString();
+          store.linkedin.deferTarget(transport.target, delivery.retryAt);
+        }
       }
     }
     delivery.updatedAt = clock().toISOString();

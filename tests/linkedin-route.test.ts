@@ -49,7 +49,7 @@ describe("LinkedIn email to Discord", () => {
   });
 
   test.each(["sendAlert", "findAlert", "findThread"] as const)("rejection while awaiting %s prevents thread creation and retains root receipt", async stage => {
-    const { store } = setup();
+    const { db, store } = setup();
     const { leadIds } = ingestLinkedInEmail(store, { ...email, textBody: email.textBody.split("\n---\n")[0] }, { fixture: true });
     const remote = transport();
     if (stage === "findAlert") {
@@ -74,7 +74,18 @@ describe("LinkedIn email to Discord", () => {
     await drainLinkedInAlerts({ store, transport: remote.adapter });
     expect(remote.messages.size).toBe(1);
     expect(remote.threads.size).toBe(0);
-    expect(store.linkedin.listDeliveries()[0]).toMatchObject({ messageId: "message-0", status: "blocked" });
+    expect(store.linkedin.listDeliveries()[0]).toMatchObject({ messageId: "message-0", status: "held", reconcileRequired: false });
+    if (stage === "sendAlert") remote.adapter.sendAlert = original as typeof remote.adapter.sendAlert;
+    else remote.adapter[stage] = original as typeof remote.adapter.findAlert;
+    store.updateLeadReview({ leadId: leadIds[0], status: "approved_for_manual_apply", note: "Synthetic explicit reapproval." });
+    await drainLinkedInAlerts({ store: new JobStore(db), transport: remote.adapter });
+    const delivered = new JobStore(db).linkedin.listDeliveries()[0];
+    expect(delivered).toMatchObject({ messageId: "message-0", threadId: "thread-message-0", status: "delivered", reconcileRequired: false });
+    await drainLinkedInAlerts({ store: new JobStore(db), transport: remote.adapter });
+    expect(store.linkedin.listDeliveries()[0]).toEqual(delivered);
+    expect(remote.messages.size).toBe(1);
+    expect(remote.threads.size).toBe(1);
+    expect(remote.calls).toHaveLength(1);
   });
 
   test("rejection during an earlier delivery prevents a later queued alert write", async () => {
@@ -92,6 +103,88 @@ describe("LinkedIn email to Discord", () => {
     await drainLinkedInAlerts({ store, transport: remote.adapter });
     expect(remote.messages.size).toBe(1);
     expect(remote.threads.size).toBe(1);
+    remote.adapter.sendAlert = send;
+    for (const lead of store.listLeads()) store.updateLeadReview({ leadId: lead.leadId, status: "approved_for_manual_apply", note: "Synthetic batch reapproval." });
+    await drainLinkedInAlerts({ store: new JobStore(store.dbPath), transport: remote.adapter });
+    expect(remote.messages.size).toBe(3);
+    expect(remote.threads.size).toBe(3);
+    expect(remote.calls).toHaveLength(3);
+  });
+
+  test.each(["root", "thread"] as const)("real %s permission block stays terminal across a queued operator hold and reapproval", async stage => {
+    const { db, store } = setup();
+    const { leadIds } = ingestLinkedInEmail(store, { ...email, textBody: email.textBody.split("\n---\n")[0] }, { fixture: true });
+    const remote = transport();
+    let writes = 0;
+    if (stage === "root") remote.adapter.sendAlert = async () => { writes++; throw new DiscordRouteError("Synthetic HTTP403", "blocked"); };
+    else remote.adapter.createThread = async () => { writes++; throw new DiscordRouteError("Synthetic HTTP403", "blocked"); };
+    await drainLinkedInAlerts({ store, transport: remote.adapter });
+    const blocked = store.linkedin.listDeliveries()[0];
+    expect(blocked.status).toBe("blocked");
+    store.updateLeadReview({ leadId: leadIds[0], status: "rejected", note: "Synthetic temporary operator hold." });
+    await drainLinkedInAlerts({ store: new JobStore(db), transport: remote.adapter });
+    expect(store.linkedin.listDeliveries()[0]).toEqual(blocked);
+    store.updateLeadReview({ leadId: leadIds[0], status: "approved_for_manual_apply", note: "Synthetic explicit reapproval." });
+    await drainLinkedInAlerts({ store: new JobStore(db), transport: remote.adapter });
+    expect(store.linkedin.listDeliveries()[0]).toEqual(blocked);
+    expect(writes).toBe(1);
+    expect(remote.messages.size).toBe(stage === "root" ? 0 : 1);
+    expect(remote.threads.size).toBe(0);
+  });
+
+  test("temporary thread admission denial retains retry timing and resumes the successful root", async () => {
+    const { db, store } = setup();
+    const { leadIds } = ingestLinkedInEmail(store, { ...email, textBody: email.textBody.split("\n---\n")[0] }, { fixture: true });
+    const remote = transport();
+    const create = remote.adapter.createThread;
+    const find = remote.adapter.findThread;
+    const now = new Date("2026-11-10T12:00:00Z");
+    remote.adapter.createThread = async () => { throw new DiscordRouteError("Synthetic rate limit", "retry", 2_000); };
+    await drainLinkedInAlerts({ store, transport: remote.adapter, now });
+    const retry = store.linkedin.listDeliveries()[0];
+    remote.adapter.createThread = create;
+    remote.adapter.findThread = async messageId => {
+      const found = await find(messageId);
+      store.updateLeadReview({ leadId: leadIds[0], status: "rejected", note: "Synthetic rejection during retry readback." });
+      return found;
+    };
+    const afterBackoff = new Date(now.getTime() + 3_000);
+    await drainLinkedInAlerts({ store: new JobStore(db), transport: remote.adapter, now: afterBackoff });
+    const held = store.linkedin.listDeliveries()[0];
+    expect(held).toMatchObject({ status: "held", messageId: retry.messageId, key: retry.key, retryAt: retry.retryAt, reconcileRequired: false, attempts: retry.attempts + 1 });
+    expect(store.linkedin.targetRetryAt(remote.adapter.target)).toBe(retry.retryAt);
+    remote.adapter.findThread = find;
+    store.updateLeadReview({ leadId: leadIds[0], status: "approved_for_manual_apply", note: "Synthetic explicit reapproval." });
+    await drainLinkedInAlerts({ store: new JobStore(db), transport: remote.adapter, now: afterBackoff });
+    expect(store.linkedin.listDeliveries()[0]).toMatchObject({ status: "delivered", messageId: retry.messageId, threadId: "thread-message-0" });
+    expect(remote.calls).toHaveLength(1);
+    expect(remote.threads.size).toBe(1);
+  });
+
+  test("operator holds and reapproval preserve an uncertain thread attempt until matching readback", async () => {
+    const { db, store } = setup();
+    const { leadIds } = ingestLinkedInEmail(store, { ...email, textBody: email.textBody.split("\n---\n")[0] }, { fixture: true });
+    const remote = transport();
+    const create = remote.adapter.createThread;
+    let threadWrites = 0;
+    remote.adapter.createThread = async payload => { threadWrites++; await create(payload); throw new Error("Synthetic lost thread receipt"); };
+    await drainLinkedInAlerts({ store, transport: remote.adapter });
+    const attempted = store.linkedin.listDeliveries()[0];
+    expect(attempted).toMatchObject({ status: "uncertain", messageId: "message-0", reconcileRequired: true });
+    store.updateLeadReview({ leadId: leadIds[0], status: "rejected", note: "Synthetic operator hold." });
+    await drainLinkedInAlerts({ store: new JobStore(db), transport: remote.adapter });
+    expect(store.linkedin.listDeliveries()[0]).toMatchObject({ status: "held", messageId: attempted.messageId, attempts: attempted.attempts, reconcileRequired: true });
+    store.updateLeadReview({ leadId: leadIds[0], status: "approved_for_manual_apply", note: "Synthetic explicit reapproval." });
+    const find = remote.adapter.findThread;
+    remote.adapter.findThread = async () => undefined;
+    await drainLinkedInAlerts({ store: new JobStore(db), transport: remote.adapter });
+    expect(store.linkedin.listDeliveries()[0]).toMatchObject({ status: "uncertain", messageId: attempted.messageId, reconcileRequired: true });
+    expect(threadWrites).toBe(1);
+    remote.adapter.findThread = find;
+    await drainLinkedInAlerts({ store: new JobStore(db), transport: remote.adapter });
+    expect(store.linkedin.listDeliveries()[0]).toMatchObject({ status: "delivered", messageId: attempted.messageId, threadId: "thread-message-0", reconcileRequired: false });
+    expect(threadWrites).toBe(1);
+    expect(remote.calls).toHaveLength(1);
   });
 
   test("multi-job replay and process restart preserve canonical identities and one thread per reviewable job", async () => {

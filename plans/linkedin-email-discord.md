@@ -2,7 +2,22 @@
 
 Complete the saved-email → fixture Discord → fit → canonical resume/PDF → manual-review route offline. Preserve real candidate inputs and artifacts privately, reuse the portfolio layout read-only, and leave live services and publication behind their existing gates.
 
-## Current admission recovery and contact review — 2026-11-10
+## Current initial-delivery recovery review — 2026-11-10
+
+R12 is the initial alert/thread sibling of the prior fit/PDF recovery fix. Preserve all prior fingerprint, nullable raw-eligibility, immutable-input, journal, contact and classification behavior. The outer executor owns full environment-enabled verification/publication; this review phase remains limited to inspection, fixes and focused verification inside the worktree.
+
+- [x] Inspect initial admission, error handling, queue hold/release and terminal claim exclusion; capture clean `git status --short` at submitted head `924d204` before edits. Read the active plan and lessons.
+- [x] State the invariant before source changes: known local admission denial is recoverable without losing root/thread receipts, retry timing or reconciliation barriers; genuine transport blocks remain terminal. Cover root admission, root success/readback -> thread admission, held release, blocked retention, batch snapshots and restart.
+- [x] Extend defining behavioral regressions before source changes and observe RED: `pnpm exec vitest run tests/linkedin-route.test.ts --reporter verbose` — exit1,7 failures,15 passes. Expected failures reproduce local `blocked` instead of `held`, stranded batches/reapproval, overwritten real root/thread permission blocks and retry-state denial. Existing uncertainty controls pass. Full output is ignored `data/review-initial-holds/red.log`.
+- [x] Give initial local admission its own private error identity and map only that denial to existing `held`, retaining receipts/retry/reconciliation fields. Leave actual transport failure handling unchanged.
+- [x] Exclude genuine `blocked` records from queue hold conversion, so ordinary hold release cannot bypass a terminal permission error. Reuse existing held release and claim logic without adding states, retries or services.
+- [x] Update recovery documentation and grouped smoke checks. Older blocked records are not blindly migrated; no cancellation of issued requests is promised. No tracked configuration or global change is involved.
+- [x] Retrace reported failure and ordinary callers after every fix: `linkedin-intake`/`linkedin-deliver` still queue/drain then project work; local root denial or post-root thread denial persists `held` with existing receipts, retry time and reconciliation flag. Existing queue release selects pending versus uncertain, and claim still honors backoff/leases. Known root resumes thread-only; uncertain thread must read back its matching receipt. Actual permission errors persist blocked and both queue/claim retain terminal exclusion across operator status changes. Successful and returned readback receipts remain recorded without cancellation claims; no unreachable helper or obsolete branch was introduced.
+- [x] Final focused verification: `pnpm exec vitest run tests/linkedin-route.test.ts tests/job-workflow-admission.test.ts tests/linkedin-transport.test.ts tests/linkedin-demo-inputs.test.ts tests/connection-cli.test.ts --reporter verbose` — exit0, all five files passed,73 tests passed,0 skipped. The demo setup ran `pnpm build` successfully with current source/tests. Complete output is ignored `data/review-initial-holds/green.log`; no source edits followed this check. This focused run does not establish real PDF rendering or live acceptance. Preserve all other enabled gates and private-intent publication policy for the outer executor.
+
+Review handoff: R12 and its terminal-block sibling are fixed. Known-root reapproval, retry preservation, uncertainty readback, genuine permission blocks and existing enrichment recovery pass. No commit, push, PR, CI, full-suite or lint phase was executed here, and no private inputs, external checkout or global configuration was changed. Historical blocked records remain terminal pending operator reconciliation.
+
+## Previous admission recovery and contact review — 2026-11-10
 
 Retain all prior posting-fact, raw remote-eligibility, immutable-input and receipt fixes. R10 distinguishes known local pre-POST admission denial from a transport block; R11 shares contact URL conversion between preparation and rendering. This review phase does not run other pipeline gates or the full environment-enabled suite, change global state, read private candidate artifacts or send live traffic.
 

@@ -80,7 +80,7 @@ export class LinkedInStore {
     this.db.transaction(() => {
       this.db.prepare("INSERT OR IGNORE INTO linkedin_deliveries VALUES (?, ?, ?)").run(target, leadId, JSON.stringify(row));
       const current = this.listDeliveries(target).find(entry => entry.leadId === leadId)!;
-      if (current.status === "delivered" || (current.status === "sending" && current.leaseUntil && Date.parse(current.leaseUntil) > Date.parse(now))) return;
+      if (["delivered", "blocked"].includes(current.status) || (current.status === "sending" && current.leaseUntil && Date.parse(current.leaseUntil) > Date.parse(now))) return;
       if (held && current.status !== "held") {
         if (current.status === "sending") current.reconcileRequired = true;
         current.status = "held";
