@@ -2,7 +2,23 @@
 
 Complete the saved-email → fixture Discord → fit → canonical resume/PDF → manual-review route offline. Preserve real candidate inputs and artifacts privately, reuse the portfolio layout read-only, and leave live services and publication behind their existing gates.
 
-## Current initial-delivery recovery review — 2026-11-10
+## Current read-retry and planning-only review — 2026-11-10
+
+R13 corrects transient read failures that invent write uncertainty. R14 removes the unused injected execution API under the explicit scope decision while preserving private planning and all unrelated fixes. Work stays inside this review phase and worktree; no runner/model invocation, live service, historical receipt migration, global state or publication phase is authorized.
+
+- [x] Inspect both findings and all affected callers; capture clean `git status --short` at submitted head `d0bc63f` before edits. Existing retry/uncertainty tests and lessons are the relevant context.
+- [x] State invariants before source edits: transient GET failures must remain retryable without implying a new write, across initial thread lookup, fit/PDF preflight and bot/history readback; existing POST uncertainty and permission blocks retain their meanings. Planning must remain an immutable read-only validation API with execution blocked.
+- [x] Bound the removal: actual execution callers are confined to tests. CLI/demo/connection and workflow tests use the planner, including its `receiptPath`, binding/request/schema and blocked marker; retain those fields. Remove only runner/output/receipt/result execution exports, persist/output/run helpers and execution-only tests/claims. Do not open or modify private historical receipts.
+- [x] Observe defining R13 RED before source fixes: `pnpm exec vitest run tests/linkedin-read-retries.test.ts --reporter verbose` — exit1,21 failures,3 GET403 controls passed. Failures cover initial thread/fit/PDF network,500/503 and unreadable-JSON reads, plus transient readback after uncertain POSTs. Complete output is ignored `data/review-get-planning/red.log`. No old execution test or injected runner was invoked.
+- [x] Classify transient GET network/server/unreadable-JSON failures at the shared request boundary using existing retry states; leave POST uncertainty, readback barriers and permission blocks intact.
+- [x] Remove unused execution machinery and retain planner fact/hash validation, deterministic restart behavior and stale-input tests against the planning API. Ten planner tests cover read-only restart, unchanged historical synthetic receipt bytes, exact byte-hash changes and five stale-fact denials.
+- [x] Update live runbook/smoke claims for planning-only scope and read retry behavior. Older execution/receipt references below are historical implementation milestones, superseded by this scope decision; they are not current APIs.
+- [x] Retrace all modified consumers after every fix: known root plus failed thread GET retains the root and false thread-uncertainty flag, waits for existing backoff, then creates the thread once. Fit/PDF GET preflights retry without inventing POST attempts; prior uncertain POSTs keep their reconciliation requirement through failed bot/history/thread reads. Actual permission errors remain terminal; 429 timing and ambiguous receipt validation retain their existing handling. The unchanged planner still validates current eligibility, posting/thread and immutable prepared/handoff facts; CLI writes its existing private plan output and demo uses that same command. Removed execution-only types, persist/output/run functions, imports/helper/tests with no remaining callers; shared read-validation helpers remain reachable.
+- [x] Final focused verification: `pnpm exec vitest run tests/linkedin-read-retries.test.ts tests/linkedin-transport.test.ts tests/linkedin-route.test.ts tests/job-workflow-admission.test.ts tests/codex-resume-dispatch.test.ts tests/connection-cli.test.ts tests/linkedin-demo-inputs.test.ts --reporter verbose` — exit0, all seven files passed,107 tests passed,0 skipped. The demo setup ran `pnpm build` successfully with current source/tests. Complete output is ignored `data/review-get-planning/green.log`; no source edits followed the final check. No execution runner was invoked. Full environment-enabled validation and remaining enabled publication/CI gates stay with the outer executor, with private intent protected.
+
+Review handoff: R13/R14 are addressed. Known-root GET recovery, fit/PDF preflight retry, preserved POST uncertainty/readback, genuine permission blocks and immutable read-only planning pass. CLI/demo plan output remains compatible, and historical private receipt files were not migrated or deleted. No model call, live send, commit, push, PR, CI, full-suite or lint phase was executed here; focused results do not establish real PDF rendering or live acceptance.
+
+## Previous initial-delivery recovery review — 2026-11-10
 
 R12 is the initial alert/thread sibling of the prior fit/PDF recovery fix. Preserve all prior fingerprint, nullable raw-eligibility, immutable-input, journal, contact and classification behavior. The outer executor owns full environment-enabled verification/publication; this review phase remains limited to inspection, fixes and focused verification inside the worktree.
 
@@ -197,7 +213,7 @@ Prepared commit subject: `feat: connect LinkedIn job review workflow`. Implement
 
 Continuation prompt: [continue-linkedin-job-workflow.md](../prompts/continue-linkedin-job-workflow.md). Next atomic implementation is trustworthy alert parsing/history replay with a failing real-sample fixture; live acceptance stays separate. Preserve the exact private DB/journal/artifact directory when resuming. Commands, outcomes, rollback and manual image check are in [the runbook](../docs/linkedin-workflow.md) and [smoke tests](../docs/smoke-tests.md).
 
-## Final connection sprint (Firstmate steer008/009)
+## Historical final connection sprint (Firstmate steer008/009)
 
 At23:00Z the first no-mistakes run01M6SHA7X63DYBMVDWANCF6561 failed at review: Claude OAuth401 invalid token. Daemon healthy, no findings, no push/PR, branch custody user_owned. No blind retry or global account/daemon repair is authorized.
 
@@ -208,7 +224,7 @@ New explicit scope: bounded native Sol/xhigh workers connect captured Gmail inta
 - [x] Immutable opt-in Codex dispatch plan/receipt; real execution blocked unless tool-capability isolation can be established.
 - [x] Root CLI integration, focused/full tests, concise module handoffs and matching final commit before cutoff.
 
-## Connection milestone and final verification
+## Historical connection milestone and final verification
 
 Second commit subject: `feat: connect captured job workflow handoffs`. Sol/xhigh workers completed Gmail capture parser9 tests, Discord review35 tests and safe Codex planning15 tests. Each verified own model/effort and configuredFast; actual inherited serving tier is unavailable and not claimed. Root integrated all three into actual CLI commands, durable intake holds and atomic review-context transactions. New executable CLI defining RED→GREEN connects captured Gmail→same-thread review→prepared work→private blocked execution plan.
 

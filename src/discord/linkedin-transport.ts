@@ -37,6 +37,7 @@ export function createDiscordLinkedInTransport(params: {
   if (!params.token.trim()) throw new Error("Discord bot token is required through the local environment.");
   const fetcher = params.fetcher ?? fetch;
   async function request(route: string, body?: unknown, missingIsAbsent = false): Promise<unknown> {
+    const transientCertainty = body === undefined ? "retry" : "uncertain";
     let response: Response;
     try {
       response = await fetcher(`https://discord.com/api/v10${route}`, {
@@ -46,7 +47,7 @@ export function createDiscordLinkedInTransport(params: {
         signal: AbortSignal.timeout(15_000)
       });
     } catch {
-      throw new DiscordRouteError("Discord request interrupted; remote outcome is uncertain.", "uncertain");
+      throw new DiscordRouteError(`Discord request interrupted; ${transientCertainty === "retry" ? "retry after read failure" : "remote outcome is uncertain"}.`, transientCertainty);
     }
     if (response.status === 404 && missingIsAbsent) return undefined;
     if (response.status === 429) {
@@ -54,8 +55,11 @@ export function createDiscordLinkedInTransport(params: {
       try { const data = record(await response.json()); if (typeof data.retry_after === "number") seconds = data.retry_after; } catch { /* Use header or a conservative fallback. */ }
       throw new DiscordRouteError("Discord rate limited; retry after the recorded time.", "retry", Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds * 1000) : 60_000);
     }
-    if (!response.ok) throw new DiscordRouteError(`Discord HTTP ${response.status}; ${response.status >= 500 ? "reconcile before retry" : "operator must check destination and permissions"}.`, response.status >= 500 ? "uncertain" : "blocked");
-    try { return await response.json(); } catch { throw new DiscordRouteError("Discord returned an unreadable receipt; reconcile before retry.", "uncertain"); }
+    if (!response.ok) {
+      const certainty = response.status >= 500 ? transientCertainty : "blocked";
+      throw new DiscordRouteError(`Discord HTTP ${response.status}; ${certainty === "retry" ? "retry after recorded time" : certainty === "uncertain" ? "reconcile before retry" : "operator must check destination and permissions"}.`, certainty);
+    }
+    try { return await response.json(); } catch { throw new DiscordRouteError(`Discord returned unreadable ${transientCertainty === "retry" ? "data; retry after recorded time" : "receipt; reconcile before retry"}.`, transientCertainty); }
   }
   let botId: string | undefined;
   async function history(channel: string, key: string): Promise<Record<string, unknown> | undefined> {

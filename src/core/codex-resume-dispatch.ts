@@ -39,20 +39,6 @@ export interface CodexResumeDispatchPlan {
   execution: "blocked_cli_isolation_unverified";
   request: CodexResumeDispatchRequest;
 }
-export interface CodexResumeDispatchOutput { receiptId: string; selectedEvidenceIds: string[] }
-/** Injection is for isolated adapters/tests only; never expose arbitrary runners in the CLI. */
-export type CodexResumeDispatchRunner = (request: CodexResumeDispatchRequest) => Promise<unknown>;
-export interface CodexResumeDispatchReceipt {
-  version: 1;
-  dispatchId: string;
-  binding: CodexResumeDispatchBinding;
-  status: "attempting" | "completed" | "uncertain";
-  attemptedAt: string;
-  completedAt?: string;
-  result?: CodexResumeDispatchOutput;
-  reason?: string;
-}
-export type CodexResumeDispatchResult = CodexResumeDispatchReceipt | { status: "blocked"; reason: string; receiptPath: string };
 interface PlanParams { store: JobStore; workId: string; privateDir: string }
 
 function object(value: unknown): Record<string, unknown> {
@@ -96,51 +82,3 @@ export function planCodexResumeDispatch(params: PlanParams): CodexResumeDispatch
   return { version: 1, dispatchId: hash(JSON.stringify({ binding, request })), binding, receiptPath: path.join(directory, "codex-dispatch-receipt.json"), execution: "blocked_cli_isolation_unverified", request };
 }
 
-function persist(file: string, receipt: CodexResumeDispatchReceipt, exclusive: boolean): void {
-  const destination = exclusive ? file : `${file}.${crypto.randomUUID()}.tmp`;
-  const descriptor = fs.openSync(destination, "wx", 0o600);
-  try { fs.writeFileSync(descriptor, JSON.stringify(receipt, null, 2) + "\n"); fs.fsyncSync(descriptor); }
-  finally { fs.closeSync(descriptor); }
-  if (!exclusive) fs.renameSync(destination, file);
-  const directory = fs.openSync(path.dirname(file), "r");
-  try { fs.fsyncSync(directory); } finally { fs.closeSync(directory); }
-}
-function output(value: unknown, approvedIds: string[]): CodexResumeDispatchOutput {
-  const result = object(value);
-  if (Object.keys(result).sort().join(",") !== "receiptId,selectedEvidenceIds" || typeof result.receiptId !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,199}$/.test(result.receiptId) || !Array.isArray(result.selectedEvidenceIds) || !result.selectedEvidenceIds.length || result.selectedEvidenceIds.length > approvedIds.length || new Set(result.selectedEvidenceIds).size !== result.selectedEvidenceIds.length || result.selectedEvidenceIds.some(id => typeof id !== "string" || !approvedIds.includes(id))) throw new Error("Dispatch output must select only unique approved evidence IDs.");
-  return { receiptId: result.receiptId, selectedEvidenceIds: result.selectedEvidenceIds as string[] };
-}
-
-/** A receipt of any kind is a stop condition; reconciliation is deliberately operator-owned. */
-export async function runCodexResumeDispatch(params: {
-  store: JobStore; privateDir: string; plan: CodexResumeDispatchPlan; operatorEnabled: boolean;
-  mode: "isolated-runner" | "codex-cli"; runner?: CodexResumeDispatchRunner;
-}): Promise<CodexResumeDispatchResult> {
-  const blocked = (reason: string): CodexResumeDispatchResult => ({ status: "blocked", reason, receiptPath: params.plan.receiptPath });
-  if (params.operatorEnabled !== true) return blocked("Explicit operator enablement is required; no dispatch attempted.");
-  if (params.mode !== "isolated-runner") return blocked("Codex CLI execution is blocked: tool and network capability isolation has not been established.");
-  if (typeof params.runner !== "function") return blocked("An explicitly isolated runner is required; no dispatch attempted.");
-  let current: CodexResumeDispatchPlan;
-  try { current = planCodexResumeDispatch({ store: params.store, privateDir: params.privateDir, workId: params.plan.binding.workId }); }
-  catch { return blocked("Current eligibility or immutable dispatch inputs failed validation; replan after operator review."); }
-  if (JSON.stringify(current) !== JSON.stringify(params.plan)) return blocked("Dispatch plan is stale or changed; replan and review exact current hashes.");
-  const receipt: CodexResumeDispatchReceipt = { version: 1, dispatchId: current.dispatchId, binding: current.binding, status: "attempting", attemptedAt: new Date().toISOString() };
-  try { persist(current.receiptPath, receipt, true); }
-  catch { return blocked("Existing or unwritable dispatch receipt; reconcile its outcome before any further dispatch."); }
-  try {
-    const result = await params.runner(structuredClone(current.request));
-    const after = planCodexResumeDispatch({ store: params.store, privateDir: params.privateDir, workId: current.binding.workId });
-    if (JSON.stringify(after) !== JSON.stringify(current)) throw new Error("Dispatch inputs or eligibility changed while the runner was pending.");
-    receipt.result = output(result, current.request.approvedClaims.map(claim => claim.id));
-    receipt.status = "completed";
-    receipt.completedAt = new Date().toISOString();
-    persist(current.receiptPath, receipt, false);
-  } catch {
-    receipt.status = "uncertain";
-    receipt.result = undefined;
-    receipt.reason = "Runner completion or receipt persistence is uncertain; operator reconciliation is required. Never retry blindly.";
-    // An earlier durable attempting receipt still prevents retries if this write fails.
-    try { persist(current.receiptPath, receipt, false); } catch { /* Preserve the attempt barrier. */ }
-  }
-  return receipt;
-}

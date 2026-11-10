@@ -12,6 +12,8 @@ Use the local synthetic demo to check replay, per-job review threads, private re
   Expected: Retry time is honored; uncertainty survives readback throttling. No second POST is attempted without conclusive readback. Corrected location holds can resume; explicit rejection stops pending sends, expired-send recovery and thread creation after asynchronous readback while preserving known receipts.
 - Action: Reject a job while its initial root/thread readback awaits, then explicitly reapprove it and drain the same target after restart. Repeat with a definite thread retry and an uncertain thread attempt; compare against real root/thread permission blocks across a queued operator hold.
   Expected: Local denials become recoverable holds. The same root is reused without another alert POST; retry timing survives and uncertain threads require matching readback. Genuine transport blocks remain terminal across rejection/reapproval, while returned receipts stay preserved.
+- Action: Exercise network, server and unreadable-JSON GET failures during initial thread lookup and fit/PDF preflight, then repeat after the recorded retry time. Contrast with an uncertain POST followed by a failed history read and with a permission block.
+  Expected: GET failures before a new write retry without inventing uncertainty or resending known receipts. Existing POST uncertainty survives failed readback and requires matching receipts; permission blocks stay terminal.
 - Action: Use two fixture processes against the same private journal, exercising alert, thread, fit and attachment writes through `tests/linkedin-transport.test.ts`, then reopen the journal. Repeat an attachment key with different bytes.
   Expected: Every successful receipt remains readable after restart, original journal entries survive, and repeating an attachment preserves its first bytes. The adjacent private SQLite file serializes mutations without changing the journal format.
 - Action: Select a manual resume with `set-resume`, then ingest a newer observation of the same posting, including one with changed requirements. Repeat after an explicit rejection.
@@ -21,6 +23,8 @@ Use the local synthetic demo to check replay, per-job review threads, private re
 
 - Action: Run `node scripts/linkedin-demo.mjs --output-dir data/linkedin-connections --phase connections` and inspect its JSON result and private plan paths.
   Expected: Four captured synthetic Gmail jobs, authorized original-thread review, two eligible prepared jobs, immutable private Codex plans marked blocked_cli_isolation_unverified, zero model calls and zero production sends.
+- Action: Repeat planning after restart, then change prepared/handoff bytes or current eligibility/posting/thread facts using synthetic fixtures.
+  Expected: Unchanged planning preserves its hashes and approved inputs without writing execution receipts; changed bytes produce a new plan binding, and stale semantic facts deny planning. Historical private receipt files remain untouched. There is no callable execution runner.
 - Action: Replay an invalid capture-context digest and then a corrected trusted context using the connection CLI regression.
   Expected: A durable held source version appears, then resolves on successful verified parsing. Unsupported layouts remain visible with reasons.
 - Action: Attempt a review from an unknown user/thread or applied status without manual confirmation; repeat an already handled interaction after restart.

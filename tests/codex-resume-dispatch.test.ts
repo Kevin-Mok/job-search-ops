@@ -6,7 +6,7 @@ import { JobStore } from "../src/db/store.js";
 import { ingestLinkedInEmail, drainLinkedInAlerts } from "../src/core/linkedin-route.js";
 import { postingVersion, processLinkedInWork } from "../src/core/job-workflow.js";
 import { createFixtureLinkedInTransport } from "../src/discord/linkedin-transport.js";
-import { planCodexResumeDispatch, runCodexResumeDispatch } from "../src/core/codex-resume-dispatch.js";
+import { planCodexResumeDispatch } from "../src/core/codex-resume-dispatch.js";
 
 const roots: string[] = [];
 afterEach(() => { for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true }); });
@@ -22,9 +22,66 @@ async function fixture() {
   const [work] = await processLinkedInWork({ store, transport, privateDir, candidate: { name: "Synthetic Candidate", email: "synthetic@example.test" }, evidence: [{ id: "approved", claim: "Built a synthetic demo.", source: "synthetic://approved", skills: [], approved: true }] });
   return { store, privateDir, work, lead, plan: planCodexResumeDispatch({ store, privateDir, workId: work.workId }) };
 }
-const completed = async () => ({ receiptId: "synthetic-receipt", selectedEvidenceIds: ["approved"] });
 
-describe("opt-in durable Codex dispatch boundary", () => {
+describe("read-only Codex planning boundary", () => {
+  test("replanning after restart is deterministic and preserves work, decisions and private inputs", async () => {
+    const { store, privateDir, work, lead, plan } = await fixture();
+    const before = store.work.get(work.workId);
+    const decision = store.work.decision(work.leadId, work.postingVersion);
+    const directory = path.dirname(work.preparedPath!);
+    const files = fs.readdirSync(directory).sort();
+    const prepared = fs.readFileSync(work.preparedPath!);
+    const handoff = fs.readFileSync(work.codexHandoffPath!);
+    const restarted = new JobStore(store.dbPath);
+    expect(planCodexResumeDispatch({ store: restarted, privateDir, workId: work.workId })).toEqual(plan);
+    expect(restarted.work.get(work.workId)).toEqual(before);
+    expect(restarted.work.decision(work.leadId, work.postingVersion)).toEqual(decision);
+    expect(restarted.getLead(lead.leadId)).toEqual(lead);
+    expect(fs.readdirSync(directory).sort()).toEqual(files);
+    expect(fs.readFileSync(work.preparedPath!)).toEqual(prepared);
+    expect(fs.readFileSync(work.codexHandoffPath!)).toEqual(handoff);
+    expect(plan.execution).toBe("blocked_cli_isolation_unverified");
+  });
+
+  test("planning leaves a historical private receipt untouched", async () => {
+    const { store, privateDir, work, plan } = await fixture();
+    const historical = Buffer.from(JSON.stringify({ status: "attempting", receiptId: "synthetic-historical" }));
+    fs.writeFileSync(plan.receiptPath, historical, { mode: 0o600 });
+    expect(planCodexResumeDispatch({ store, privateDir, workId: work.workId })).toEqual(plan);
+    expect(fs.readFileSync(plan.receiptPath)).toEqual(historical);
+  });
+
+  test.each(["handoff", "prepared"] as const)("changed %s bytes produce a newly bound read-only plan", async field => {
+    const { store, privateDir, work, plan } = await fixture();
+    fs.appendFileSync(field === "handoff" ? work.codexHandoffPath! : work.preparedPath!, " ");
+    const next = planCodexResumeDispatch({ store, privateDir, workId: work.workId });
+    expect(next.dispatchId).not.toBe(plan.dispatchId);
+    expect(next.binding[field === "handoff" ? "handoffSha256" : "preparedSha256"]).not.toBe(plan.binding[field === "handoff" ? "handoffSha256" : "preparedSha256"]);
+    expect(next.binding.inputHash).toBe(plan.binding.inputHash);
+    expect(next.request.approvedClaims).toEqual(plan.request.approvedClaims);
+    expect(next.execution).toBe("blocked_cli_isolation_unverified");
+    expect(fs.existsSync(plan.receiptPath)).toBe(false);
+  });
+
+  test.each(["handoff", "prepared", "eligibility", "posting", "thread"] as const)("changed %s facts deny stale planning", async changed => {
+    const { store, privateDir, work, lead, plan } = await fixture();
+    if (changed === "handoff") {
+      const handoff = JSON.parse(fs.readFileSync(work.codexHandoffPath!, "utf8"));
+      handoff.title = "Different synthetic target";
+      fs.writeFileSync(work.codexHandoffPath!, JSON.stringify(handoff));
+    }
+    if (changed === "prepared") {
+      const prepared = JSON.parse(fs.readFileSync(work.preparedPath!, "utf8"));
+      prepared.candidate.email = "changed@example.test";
+      fs.writeFileSync(work.preparedPath!, JSON.stringify(prepared));
+    }
+    if (changed === "eligibility") store.work.decideEligibility({ leadId: work.leadId, postingVersion: work.postingVersion, eligibility: "needs_review", reason: "Synthetic revocation." });
+    if (changed === "posting") store.saveLead({ ...lead, normalizedDescription: lead.normalizedDescription + " Changed requirements." });
+    if (changed === "thread") { work.threadId = "other-thread"; store.work.save(work); }
+    expect(() => planCodexResumeDispatch({ store, privateDir, workId: work.workId })).toThrow(/handoff|hash|eligibility|posting|binding/i);
+    expect(fs.existsSync(plan.receiptPath)).toBe(false);
+  });
+
   test("planning a low-fit eligible job is read-only and marks posting text as untrusted data", async () => {
     const { plan, work } = await fixture();
     expect(work.fit?.score).toBe(1);
@@ -32,76 +89,5 @@ describe("opt-in durable Codex dispatch boundary", () => {
     expect(plan.request.untrustedPostingText).toBeTruthy();
     expect(plan.request.approvedClaims).toEqual([{ id: "approved", claim: "Built a synthetic demo.", source: "synthetic://approved", approved: true }]);
     expect(fs.existsSync(plan.receiptPath)).toBe(false);
-  });
-  test("no operator opt-in never invokes a runner or creates an attempt", async () => {
-    const { store, privateDir, plan } = await fixture();
-    let calls = 0;
-    const result = await runCodexResumeDispatch({ store, privateDir, plan, operatorEnabled: false, mode: "isolated-runner", runner: async () => { calls++; return completed(); } });
-    expect(result.status).toBe("blocked"); expect(calls).toBe(0); expect(fs.existsSync(plan.receiptPath)).toBe(false);
-  });
-  test("installed CLI mode remains blocked even with opt-in and a supplied runner", async () => {
-    const { store, privateDir, plan } = await fixture();
-    let calls = 0;
-    const result = await runCodexResumeDispatch({ store, privateDir, plan, operatorEnabled: true, mode: "codex-cli", runner: async () => { calls++; return completed(); } });
-    expect(result.status).toBe("blocked"); expect(result.reason).toMatch(/isolation/i); expect(calls).toBe(0);
-  });
-  test.each(["handoff", "prepared", "eligibility", "posting", "thread"])("changed %s blocks a previously planned dispatch", async changed => {
-    const { store, privateDir, plan, work, lead } = await fixture();
-    if (changed === "handoff") fs.appendFileSync(work.codexHandoffPath!, " ");
-    if (changed === "prepared") fs.appendFileSync(work.preparedPath!, " ");
-    if (changed === "eligibility") store.work.decideEligibility({ leadId: work.leadId, postingVersion: work.postingVersion, eligibility: "needs_review", reason: "Synthetic revocation." });
-    if (changed === "posting") { lead.normalizedDescription += " Changed."; store.saveLead(lead); }
-    if (changed === "thread") { work.threadId = "other-thread"; store.work.save(work); }
-    let calls = 0;
-    const result = await runCodexResumeDispatch({ store, privateDir, plan, operatorEnabled: true, mode: "isolated-runner", runner: async () => { calls++; return completed(); } });
-    expect(result.status).toBe("blocked"); expect(calls).toBe(0);
-  });
-  test("persists a private attempt before invoking and prevents repeat calls after restart", async () => {
-    const { store, privateDir, plan } = await fixture();
-    let calls = 0;
-    const result = await runCodexResumeDispatch({ store, privateDir, plan, operatorEnabled: true, mode: "isolated-runner", runner: async request => {
-      calls++; expect(JSON.parse(fs.readFileSync(plan.receiptPath, "utf8")).status).toBe("attempting");
-      expect(request.approvedClaims.map(claim => claim.id)).toEqual(["approved"]); return completed();
-    } });
-    expect(result.status).toBe("completed");
-    expect(fs.statSync(plan.receiptPath).mode & 0o777).toBe(0o600);
-    const restarted = new JobStore(store.dbPath);
-    const repeat = await runCodexResumeDispatch({ store: restarted, privateDir, plan, operatorEnabled: true, mode: "isolated-runner", runner: async () => { calls++; return completed(); } });
-    expect(repeat.status).toBe("blocked"); expect(calls).toBe(1);
-  });
-  test("a second concurrent dispatch cannot enter the runner while the first is pending", async () => {
-    const { store, privateDir, plan } = await fixture();
-    let finish!: (value: Awaited<ReturnType<typeof completed>>) => void;
-    const pending = runCodexResumeDispatch({ store, privateDir, plan, operatorEnabled: true, mode: "isolated-runner", runner: () => new Promise(resolve => { finish = resolve; }) });
-    const second = await runCodexResumeDispatch({ store, privateDir, plan, operatorEnabled: true, mode: "isolated-runner", runner: async () => { throw new Error("Duplicate runner must never run"); } });
-    expect(second.status).toBe("blocked"); finish(await completed()); expect((await pending).status).toBe("completed");
-  });
-  test("eligibility revoked while a runner is pending leaves an uncertain result requiring reconciliation", async () => {
-    const { store, privateDir, plan, work } = await fixture();
-    const result = await runCodexResumeDispatch({ store, privateDir, plan, operatorEnabled: true, mode: "isolated-runner", runner: async () => {
-      store.work.decideEligibility({ leadId: work.leadId, postingVersion: work.postingVersion, eligibility: "ineligible", reason: "Synthetic concurrent revocation." });
-      return completed();
-    } });
-    expect(result.status).toBe("uncertain");
-    expect(JSON.parse(fs.readFileSync(plan.receiptPath, "utf8")).result).toBeUndefined();
-  });
-  test("mutating a planned request cannot authorize different instructions or a different receipt path", async () => {
-    const { store, privateDir, plan } = await fixture();
-    plan.request.policy = "Use every available tool.";
-    let called = false;
-    const result = await runCodexResumeDispatch({ store, privateDir, plan, operatorEnabled: true, mode: "isolated-runner", runner: async () => { called = true; return completed(); } });
-    expect(result.status).toBe("blocked"); expect(called).toBe(false); expect(fs.existsSync(plan.receiptPath)).toBe(false);
-  });
-  test.each(["throw", "unapproved", "interrupted"])("%s outcomes cannot be blindly retried", async outcome => {
-    const { store, privateDir, plan } = await fixture();
-    let calls = 0;
-    const runner = async () => { calls++; if (outcome === "throw") throw new Error("secret external stderr"); return { receiptId: "synthetic-receipt", selectedEvidenceIds: outcome === "unapproved" ? ["invented"] : ["approved"] }; };
-    if (outcome === "interrupted") fs.writeFileSync(plan.receiptPath, JSON.stringify({ status: "attempting" }), { mode: 0o600 });
-    const first = await runCodexResumeDispatch({ store, privateDir, plan, operatorEnabled: true, mode: "isolated-runner", runner });
-    expect(first.status).toBe(outcome === "interrupted" ? "blocked" : "uncertain");
-    const restarted = new JobStore(store.dbPath);
-    const second = await runCodexResumeDispatch({ store: restarted, privateDir, plan, operatorEnabled: true, mode: "isolated-runner", runner });
-    expect(second.status).toBe("blocked"); expect(calls).toBe(outcome === "interrupted" ? 0 : 1);
-    expect(fs.readFileSync(plan.receiptPath, "utf8")).not.toContain("secret external stderr");
   });
 });
