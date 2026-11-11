@@ -62,6 +62,15 @@ Use the local synthetic demo to check replay, per-job review threads, private re
 - Action: Review the runbook's explicit private text-channel and authenticated-email prerequisites before selecting any real destination.
   Expected: No production destination is inferred. Live Gmail/parser/Discord acceptance is marked unverified until separately authorized credentials and destination are supplied; no fixture result is presented as live evidence.
 
+## Portable CI and posting layout
+
+- Action: With Node22, pnpm9.15.4, Chrome and Poppler installed, fetch assets using `pnpm exec node scripts/resume-ci-assets.mjs --setup --root /absolute/new/renderer-assets`, then repeat `--check --root /absolute/new/renderer-assets`. Try `--check` on an empty directory and `--setup` on the existing asset directory.
+  Expected: The immutable sixteen-file manifest verifies; missing bytes fail with setup instructions and an existing directory is never replaced. No portfolio generation/calibration or account access.
+- Action: Run `env JOB_OPS_PORTFOLIO_ROOT=/absolute/new/renderer-assets JOB_OPS_LAYOUT_PROOF_DIR=/absolute/new/synthetic-proof pnpm run test:ci` and inspect the exact `support/`, `python/` and `long/` PNGs plus coverage/geometry JSON. Compare the changed supported bullet selection and Python-first ordering against the frozen fact bank.
+  Expected: Zero renderer skips; each page is Letter, embedded regular/bold CMU, all selected approved text/links intact, readable canonical heading/bullet rhythm with no clipping/overlap. Normal samples have eleven bullets and explicit external coverage gaps; long target wraps with twelve. Every selected bullet has visible disc pixels, and every word matches independent canonical context within0.3pt and fill remains35–100.5pt. Missing-inset negative is rejected; combined long-entry overflow remains rejected, without compressing text.
+- Action: On the new prerequisite pull request, open the actual `CI / Node 22 tests and build` run and download `synthetic-resume-proof-<head>`; inspect its exact PDF/PNG previews and diagnostics, including on an intentionally failing test branch when needed.
+  Expected: The final pushed head has a real successful full-suite/build conclusion and synthetic artifacts. Failures retain available diagnostics while the job stays failed. No private journal/profile upload, live posting fetch or model call. Local tests alone are not hosted acceptance.
+
 ## Delivery validation
 
 - Action: Have the configuration owner confirm explicit native Codex selection and absent/Codex-only review-role overrides, then inspect `no-mistakes doctor` and current branch custody before starting an authorized run.
