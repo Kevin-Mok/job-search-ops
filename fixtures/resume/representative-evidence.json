@@ -1,0 +1,117 @@
+[
+  {
+    "id": "synthetic-studio-ui",
+    "claim": "Built **TypeScript** account settings screens with shared validation, accessible form labels, and clear recovery messages for invalid requests.",
+    "skills": [
+      "typescript",
+      "apis"
+    ],
+    "source": "synthetic://approved/studio-ui",
+    "approved": true
+  },
+  {
+    "id": "synthetic-studio-api",
+    "claim": "Implemented **Python** import endpoints that validate incoming records and report actionable field errors before saving application data.",
+    "skills": [
+      "python",
+      "apis"
+    ],
+    "source": "synthetic://approved/studio-api",
+    "approved": true
+  },
+  {
+    "id": "synthetic-studio-nav",
+    "claim": "Centralized navigation and permission labels in typed configuration shared across application routes and documented the update procedure.",
+    "skills": [
+      "typescript"
+    ],
+    "source": "synthetic://approved/studio-nav",
+    "approved": true
+  },
+  {
+    "id": "synthetic-support-triage",
+    "claim": "Documented **customer support** ticket triage, escalation ownership, and follow-up procedures for a synthetic service desk.",
+    "skills": [
+      "customer service",
+      "ticketing",
+      "phone support",
+      "crm"
+    ],
+    "source": "synthetic://approved/support-triage",
+    "approved": true
+  },
+  {
+    "id": "synthetic-support-tools",
+    "claim": "Built a searchable troubleshooting guide connecting common customer reports to reproducible checks and verified resolution steps.",
+    "skills": [
+      "customer service",
+      "ticketing"
+    ],
+    "source": "synthetic://approved/support-tools",
+    "approved": true
+  },
+  {
+    "id": "synthetic-support-training",
+    "claim": "Reviewed recurring ticket categories with the team and clarified handoff notes so later shifts could continue investigations.",
+    "skills": [
+      "customer service",
+      "crm"
+    ],
+    "source": "synthetic://approved/support-training",
+    "approved": true
+  },
+  {
+    "id": "synthetic-importer-parse",
+    "claim": "Created a **Python** importer that checks file headers, normalizes dates, and rejects malformed rows with source line diagnostics.",
+    "skills": [
+      "python"
+    ],
+    "source": "synthetic://approved/importer-parse",
+    "approved": true
+  },
+  {
+    "id": "synthetic-importer-test",
+    "claim": "Added saved input regression cases for empty files, duplicate identifiers, and unexpected encodings before updating the parser.",
+    "skills": [
+      "python"
+    ],
+    "source": "synthetic://approved/importer-test",
+    "approved": true
+  },
+  {
+    "id": "synthetic-importer-docs",
+    "claim": "Documented local setup, example inputs, and failure recovery so another developer could repeat an import from a clean checkout.",
+    "skills": [
+      "apis"
+    ],
+    "source": "synthetic://approved/importer-docs",
+    "approved": true
+  },
+  {
+    "id": "synthetic-portal-ui",
+    "claim": "Implemented a typed project dashboard with reusable filters, keyboard navigation, and explicit loading and empty states.",
+    "skills": [
+      "typescript"
+    ],
+    "source": "synthetic://approved/portal-ui",
+    "approved": true
+  },
+  {
+    "id": "synthetic-portal-api",
+    "claim": "Validated structured API responses before rendering project details and retained useful error context when a request failed.",
+    "skills": [
+      "apis"
+    ],
+    "source": "synthetic://approved/portal-api",
+    "approved": true
+  },
+  {
+    "id": "synthetic-portal-test",
+    "claim": "Built browser checks for account navigation and form validation, including long labels and narrow screen layouts.",
+    "skills": [
+      "typescript"
+    ],
+    "source": "synthetic://approved/portal-test",
+    "approved": true
+  }
+]

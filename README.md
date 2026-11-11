@@ -29,6 +29,7 @@ The new [LinkedIn workflow](docs/linkedin-workflow.md) connects normalized email
 - Trusted captured Gmail JSON/MIME parsing with durable holds, normalized LinkedIn handoff with transactional versions, conservative posting-URL identity and durable thread/retry reconciliation
 - Allowlisted same-thread Discord review handoff with transactional cross-process replay admission and operator provenance; immutable Codex dispatch planning with real execution blocked pending isolation
 - Evidence-backed 1–10 fit, explicit versioned eligibility, optional complete canonical resume profiles with approved bullet routing, CMU PDF checks and hash-bound same-thread fixture attachment
+- Canonical Letter print context with same-content PDF geometry regression and [representative synthetic resume inputs](fixtures/resume/) for public layout review; sparse default demos do not prove page-fill parity
 - Critical workflow tests under [`tests/`](/home/kevin/coding/openclaw/tests)
 
 ## What Is Scaffolded
