@@ -19,6 +19,9 @@ jobs:
     name: Node 22 tests and build
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
     env:
       JOB_OPS_PORTFOLIO_ROOT: ${{ runner.temp }}/resume-portfolio
       JOB_OPS_LAYOUT_PROOF_DIR: ${{ runner.temp }}/synthetic-resume-proof
