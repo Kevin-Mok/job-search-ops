@@ -231,7 +231,7 @@ export function ingestParsedLeads(store: JobStore, parsedLeads: ParsedLeadInput[
             duplicateKey: existing.duplicateKey,
             createdAt: existing.createdAt,
             reviewStatus: ["approved_for_manual_apply", "applied_manually"].includes(existing.reviewStatus)
-              || (existing.reviewStatus === "rejected" && store.listReviewEvents(existing.leadId).some(event => event.action === "status_changed" && event.payload.status === "rejected"))
+              || (["rejected", "duplicate"].includes(existing.reviewStatus) && store.listReviewEvents(existing.leadId).some(event => event.action === "status_changed" && event.payload.status === existing.reviewStatus))
               ? existing.reviewStatus : incoming.reviewStatus
           }
         : mergeLead(existing, incoming)

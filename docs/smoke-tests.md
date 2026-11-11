@@ -16,8 +16,8 @@ Use the local synthetic demo to check replay, per-job review threads, private re
   Expected: GET failures before a new write retry without inventing uncertainty or resending known receipts. Existing POST uncertainty survives failed readback and requires matching receipts; permission blocks stay terminal.
 - Action: Use two fixture processes against the same private journal, exercising alert, thread, fit and attachment writes through `tests/linkedin-transport.test.ts`, then reopen the journal. Repeat an attachment key with different bytes.
   Expected: Every successful receipt remains readable after restart, original journal entries survive, and repeating an attachment preserves its first bytes. The adjacent private SQLite file serializes mutations without changing the journal format.
-- Action: Select a manual resume with `set-resume`, then ingest a newer observation of the same posting, including one with changed requirements. Repeat after an explicit rejection.
-  Expected: The chosen resume survives source refresh; the derived packet uses the current target and final operator state. Rejection still prevents delivery.
+- Action: Select a manual resume with `set-resume`, then ingest a newer observation of the same posting, including one with changed requirements. Repeat after explicit rejected and duplicate decisions through `JobStore.updateLeadReview`, with prior eligibility approval and queued work; attempt alert drain, enrichment and prepared dispatch.
+  Expected: The chosen resume survives source refresh; the derived packet uses the current target and final operator state. Audited rejection and duplicate holds survive unchanged and changed posting refreshes and prevent alerts, enrichment and prepared dispatch until explicit operator reapproval.
 
 ## Captured connections and operator provenance
 
