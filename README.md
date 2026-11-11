@@ -115,7 +115,7 @@ To use approved private candidate data with these fixture jobs, supply **both** 
 
 For the real CLI/input contract, source trust, retry recovery, exact artifact gates and rollback, read [LinkedIn workflow](docs/linkedin-workflow.md). `node dist/src/cli.js help` lists the new commands; `--db` selects canonical storage, and `--transport fixture --journal PATH` selects local delivery. A real transport requires an explicitly authorized private destination and environment credentials; there is no default live send. Unknown authorization stays held for review. Fit never suppresses an eligible job.
 
-Posting requirement changes, including exact remote-eligibility text, require renewed eligibility review; prepared candidate/evidence inputs and uncertain receipts remain bound together. Admission is checked again after asynchronous work and immediately before enrichment sends. Source refresh preserves manual resume choices and operator rejection. Concurrent fixture writes share a private SQLite lock beside the journal; retain the full private run directory for restart.
+For posting changes, operator holds, admission checks and fixture-journal recovery, follow [delivery recovery](docs/linkedin-workflow.md#delivery-recovery). Retain the full private run directory for restart.
 
 Delivery validation uses the complete no-mistakes pipeline with native Codex selected explicitly for every role. The configuration owner establishes that selection; auto/mixed provider fallback is excluded. Validation keeps all steps enabled and escalates product decisions through Firstmate. See the runbook for the supported configuration boundary and delivery procedure; this does not authorize live job-flow model calls or sends.
 
