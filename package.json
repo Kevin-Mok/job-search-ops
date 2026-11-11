@@ -19,7 +19,8 @@
     "note:job": "pnpm build && node dist/src/cli.js note",
     "resume:job": "pnpm build && node dist/src/cli.js set-resume",
     "apply-status:job": "pnpm build && node dist/src/cli.js apply-status",
-    "draft:packet": "pnpm build && node dist/src/cli.js draft-packet"
+    "draft:packet": "pnpm build && node dist/src/cli.js draft-packet",
+    "test:ci": "node scripts/resume-ci-assets.mjs --check && vitest run"
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0"

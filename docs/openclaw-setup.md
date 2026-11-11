@@ -1,5 +1,7 @@
 # OpenClaw Setup
 
+Install the local dependencies, exercise fixture intake, then configure an isolated OpenClaw runtime for separately authorized Discord and Gmail checks. For the LinkedIn CLI route, use the [LinkedIn workflow](linkedin-workflow.md).
+
 ## 1. Install OpenClaw
 
 The official installer worked in this environment and installed `OpenClaw 2026.3.11`.
@@ -367,7 +369,7 @@ You should see `Maple Systems | Junior Python Developer | approved_for_manual_ap
 
 This repo can currently prove Discord slash-skill invocation, DB-backed mutations, the browser-backed Indeed sync path, and the browser-backed X news sync path through deterministic fixtures.
 
-It does not yet rebuild the full DB-backed review-thread projection into Discord automatically. The current implementation rebuilds the Discord review projection locally through [`src/discord/review-plan.ts`](/home/kevin/coding/openclaw/src/discord/review-plan.ts), while direct Indeed sync posts only the dedicated feed notifications.
+The full DB-backed review projection in [`src/discord/review-plan.ts`](../src/discord/review-plan.ts) remains local; direct Indeed sync posts dedicated feed notifications. The separate [LinkedIn workflow](linkedin-workflow.md) owns per-posting thread delivery and its fixture/live acceptance boundaries.
 
 ## 7. Gmail Pub/Sub Setup Path
 
@@ -377,4 +379,4 @@ The example config scaffolds:
 - `hooks.gmail.*`
 - a mapped `hooks.mappings[]` entry targeting the `jobops` agent
 
-Live Gmail watch configuration is blocked on real Google Cloud and Gmail credentials. The fixture replay path is the supported local substitute in this repo.
+Live Gmail watch configuration is blocked on real Google Cloud and Gmail credentials. For local fixture replay or trusted captured Gmail intake, follow the [LinkedIn workflow](linkedin-workflow.md); those paths do not establish live Pub/Sub delivery.

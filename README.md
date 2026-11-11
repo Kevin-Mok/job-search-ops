@@ -4,6 +4,18 @@ This repo is a greenfield proof of concept for a private job-operations assistan
 
 The POC is intentionally fixture-first. It can ingest replayable Indeed and LinkedIn alert fixtures, normalize and dedupe leads, evaluate Toronto location policy for `M1E 4V4`, choose a resume lane, draft application packets without inventing experience, derive a Discord review-thread plan from the canonical DB, run a browser-backed Indeed search sync that posts newly prospective leads into Discord, and run a browser-backed X/Twitter AI news sync that stores and delivers high-signal OpenAI/Codex/Claude/Anthropic and vibe-coding updates.
 
+## Tech Stack And Why Chosen
+
+| Layer | Why it is here |
+| --- | --- |
+| TypeScript / Node.js | One typed CLI and shared pipeline, with injectable transports for local verification |
+| SQLite / better-sqlite3 | Transactional canonical job state and durable replay/retry receipts without another service |
+| OpenClaw | Existing browser, Gmail-hook scaffold and Discord operator workspace |
+| Vitest | Synthetic regression coverage for ingestion, recovery and operator actions |
+| Chrome / Poppler / portfolio CMU assets | Private job-specific PDF drafts using existing fonts, layout checks and exact-byte validation |
+
+The new [LinkedIn workflow](docs/linkedin-workflow.md) connects normalized email intake, stable threads, evidence-backed fit, every-eligible-job prepared work, and exact PDF attachment through a local fixture transport. Real mailbox/Discord delivery remains a separate authorized test gate.
+
 ## What Is Implemented
 
 - OpenClaw-oriented architecture and setup docs in [`docs/openclaw-foundation.md`](/home/kevin/coding/openclaw/docs/openclaw-foundation.md), [`docs/openclaw-architecture.md`](/home/kevin/coding/openclaw/docs/openclaw-architecture.md), and [`docs/openclaw-setup.md`](/home/kevin/coding/openclaw/docs/openclaw-setup.md)
@@ -14,6 +26,10 @@ The POC is intentionally fixture-first. It can ingest replayable Indeed and Link
 - Fixture-driven ingest pipeline and SQLite persistence under [`src/`](/home/kevin/coding/openclaw/src)
 - Browser-backed Indeed sync path with persistent OpenClaw browser profiles, blocked-page detection, sync-run audit records, and Discord feed delivery suppression
 - Browser-backed X news sync path with authenticated following/timeline scraping, internal watchlist discovery, sync-run audit records, and Discord delivery suppression
+- Trusted captured Gmail JSON/MIME parsing with durable holds, normalized LinkedIn handoff with transactional versions, conservative posting-URL identity and durable thread/retry reconciliation
+- Allowlisted same-thread Discord review handoff with transactional cross-process replay admission and operator provenance; immutable Codex dispatch planning with real execution blocked pending isolation
+- Evidence-backed 1–10 fit, explicit versioned eligibility, optional complete canonical resume profiles with approved bullet routing, CMU PDF checks and hash-bound same-thread fixture attachment
+- Canonical Letter print context with same-content PDF geometry regression and [representative synthetic resume inputs](fixtures/resume/) for public layout review; sparse default demos do not prove page-fill parity
 - Critical workflow tests under [`tests/`](/home/kevin/coding/openclaw/tests)
 
 ## What Is Scaffolded
@@ -80,6 +96,28 @@ openclaw skills list
 These `openclaw` commands assume `OPENCLAW_STATE_DIR` and `OPENCLAW_CONFIG_PATH` are already exported for this repo, as shown in [`docs/openclaw-setup.md`](/home/kevin/coding/openclaw/docs/openclaw-setup.md).
 
 For live Discord/Gmail work, replace the placeholder values in [`config/openclaw.example.json5`](/home/kevin/coding/openclaw/config/openclaw.example.json5). For direct Indeed sync, copy [`config/indeed-alerts.example.json`](/home/kevin/coding/openclaw/config/indeed-alerts.example.json) to `config/indeed-alerts.json`, replace the placeholder Discord target with the real feed channel, and keep the browser profile/timeouts unless you have a reason to tune them. The example alert also enables `auth.mode: "pass"` so the sync can recover from Indeed sign-in redirects by reading machine-local credentials from `pass`. For X news, copy [`config/twitter-news.example.json`](/home/kevin/coding/openclaw/config/twitter-news.example.json) to `config/twitter-news.json`, keep the seed handle as `Kev_Mok` unless you want a different graph root, and log into X once in the configured OpenClaw browser profile before the first sync.
+
+## LinkedIn Email To Discord Demo
+
+Build once, then exercise the synthetic workflow. These commands never connect accounts or send Discord messages:
+
+```fish
+pnpm build
+node scripts/linkedin-demo.mjs --output-dir data/linkedin-demo --phase connections
+node scripts/linkedin-demo.mjs --output-dir data/linkedin-demo --phase prepare --portfolio-root /absolute/path/to/portfolio-site
+```
+
+`--output-dir` keeps the SQLite DB, local Discord journal and private PDFs together. `--phase connections` exercises synthetic captured Gmail, bound review and blocked Codex plans; `--phase intake` is replayable; `prepare` explicitly approves synthetic eligible cases and stops for page-image review. Inspect the returned PNGs before using `--phase attach --approve-visual --portfolio-root /absolute/path/to/portfolio-site`. `--phase state` reports durable state; `--plain` removes decorative terminal glyphs. The PDF phase requires Chrome, Poppler and the read-only portfolio assets.
+
+GitHub Actions runs the locked full suite and TypeScript build on pull requests and pushes to `main`/`fm/**`, using Node 22, native SQLite, Chrome and Poppler. Rendering is mandatory in CI. [Portable setup and synthetic proof](docs/linkedin-workflow.md#portable-ci-and-synthetic-posting-proof) document pinned public assets, two frozen posting examples, coverage gaps, canonical geometry/negative checks and downloadable PDF/PNG diagnostics; no accounts or model calls are used.
+
+To use approved private candidate data with these fixture jobs, supply **both** `--candidate /absolute/private/candidate.json --evidence /absolute/private/approved-evidence.json` on the first phase. Later phases reuse validated private snapshots; changed inputs require a fresh output directory. Optional `candidate.profile` retains the canonical web-dev contact, experience, projects, skills and education structure, source hashes and approved evidence IDs. Unapproved/SRC-only bullets and summaries remain review holds. Name/email-only inputs retain the simpler contribution draft. This is offline, deterministic evidence ordering; model tailoring, candidate quality and live service readiness are separate gates. See the [profile contract](docs/linkedin-workflow.md#canonical-profile-and-approval-boundary).
+
+For the real CLI/input contract, source trust, retry recovery, exact artifact gates and rollback, read [LinkedIn workflow](docs/linkedin-workflow.md). `node dist/src/cli.js help` lists the new commands; `--db` selects canonical storage, and `--transport fixture --journal PATH` selects local delivery. A real transport requires an explicitly authorized private destination and environment credentials; there is no default live send. Unknown authorization stays held for review. Fit never suppresses an eligible job.
+
+For posting changes, operator holds, admission checks and fixture-journal recovery, follow [delivery recovery](docs/linkedin-workflow.md#delivery-recovery). Retain the full private run directory for restart.
+
+Delivery validation uses the complete no-mistakes pipeline with native Codex selected explicitly for every role. The configuration owner establishes that selection; auto/mixed provider fallback is excluded. Validation keeps all steps enabled and escalates product decisions through Firstmate. See the runbook for the supported configuration boundary and delivery procedure; this does not authorize live job-flow model calls or sends.
 
 ## How To Use
 
@@ -165,6 +203,7 @@ pnpm watchlist:x-news -- --config config/twitter-news.json --list ai-alpha
 
 ## Status
 
-- Implemented locally: fixture replay, normalization, dedupe, location policy, resume routing, draft packets, DB state, Discord review projection, browser-backed Indeed sync, browser-backed X news sync with internal watchlist discovery, and tests.
+- Implemented locally: normalized LinkedIn email → durable initial thread → explained fit → private approved-claim PDF → hash-bound fixture attachment, versioned eligibility and resume work, fixture replay, normalization, dedupe, location policy, resume routing, draft packets, DB state, Discord review projection, browser-backed Indeed sync, browser-backed X news sync with internal watchlist discovery, and tests.
+- Not live-tested: the new Discord REST adapter and trusted email handoff. Live Gmail watch/history and automatic sender/signature verification, unsupported alert layouts, and actual Codex execution remain gaps. Captured MIME/labeled HTML, local review and safe planning are implemented.
 - Scaffolded but not live-tested end-to-end: Discord bot connectivity, Gmail Pub/Sub watch delivery, live gateway run with external model/provider secrets, and successful Indeed fetches beyond Cloudflare interstitial handling.
 - Deferred intentionally: auto-apply flows, full browser automation for all leads before first-pass filtering, multi-tenant abstractions.

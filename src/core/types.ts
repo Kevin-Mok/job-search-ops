@@ -116,6 +116,7 @@ export interface JobLeadRecord {
   locationRaw: string;
   workModel: WorkModel;
   officeLocationRaw?: string;
+  remoteEligibility?: string;
   seniority: Seniority;
   employmentType?: string;
   compensationText?: string;
@@ -490,4 +491,41 @@ export interface ReviewThreadProjection {
 export interface ReviewBoardProjection {
   shortlistFeed: string[];
   threads: ReviewThreadProjection[];
+}
+
+export type LinkedInDeliveryStatus = "pending" | "sending" | "retry" | "uncertain" | "delivered" | "held" | "blocked";
+export interface LinkedInDeliveryRecord {
+  target: string;
+  leadId: string;
+  key: string;
+  status: LinkedInDeliveryStatus;
+  messageId?: string;
+  threadId?: string;
+  attempts: number;
+  retryAt?: string;
+  leaseUntil?: string;
+  reconcileRequired?: boolean;
+  lastError?: string;
+  updatedAt: string;
+}
+export interface LinkedInMessageRecord {
+  messageId: string;
+  version: string;
+  receivedAt: string;
+  leadIds: string[];
+}
+
+export interface ReviewActionContext {
+  interactionId: string;
+  userId: string;
+  parentChannelId: string;
+  threadId: string;
+  rootMessageId: string;
+  target: string;
+  manualApplicationConfirmed?: boolean;
+}
+
+export interface LinkedInIntakeHold {
+  messageId: string; version: string; capturePath: string; reasons: string[];
+  status: "held" | "resolved"; updatedAt: string;
 }

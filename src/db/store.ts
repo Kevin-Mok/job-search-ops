@@ -3,11 +3,14 @@ import path from "node:path";
 import crypto from "node:crypto";
 
 import Database from "better-sqlite3";
+import { LinkedInStore } from "./linkedin-store.js";
+import { JobWorkStore } from "./job-work-store.js";
 
 import type {
   DiscordDeliveryRecord,
   JobLeadRecord,
   ReviewEventRecord,
+  ReviewActionContext,
   ReviewStatus,
   SyncRunRecord,
   SyncRunStatus,
@@ -19,6 +22,13 @@ import type {
 import { REVIEW_STATUSES } from "../core/types.js";
 
 type SqlRow = Record<string, unknown>;
+
+export class ReplayedReviewInteractionError extends Error {
+  constructor() {
+    super("This Discord interaction was already recorded; no review changes were made.");
+    this.name = "ReplayedReviewInteractionError";
+  }
+}
 
 function ensureDirectory(filePath: string): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -45,6 +55,7 @@ function toLeadRecord(row: SqlRow): JobLeadRecord {
     locationRaw: String(row.location_raw),
     workModel: String(row.work_model) as JobLeadRecord["workModel"],
     officeLocationRaw: row.office_location_raw ? String(row.office_location_raw) : undefined,
+    remoteEligibility: typeof row.remote_eligibility_raw === "string" ? row.remote_eligibility_raw : undefined,
     seniority: String(row.seniority) as JobLeadRecord["seniority"],
     employmentType: row.employment_type ? String(row.employment_type) : undefined,
     compensationText: row.compensation_text ? String(row.compensation_text) : undefined,
@@ -189,11 +200,15 @@ function toXNewsDeliveryRecord(row: SqlRow): XNewsDeliveryRecord {
 
 export class JobStore {
   private readonly db: Database.Database;
+  readonly linkedin: LinkedInStore;
+  readonly work: JobWorkStore;
 
   constructor(public readonly dbPath: string) {
     ensureDirectory(dbPath);
     this.db = new Database(dbPath);
     this.initialize();
+    this.linkedin = new LinkedInStore(this.db);
+    this.work = new JobWorkStore(this.db);
   }
 
   private initialize(): void {
@@ -210,6 +225,7 @@ export class JobStore {
         location_raw TEXT NOT NULL,
         work_model TEXT NOT NULL,
         office_location_raw TEXT,
+        remote_eligibility_raw TEXT,
         seniority TEXT NOT NULL,
         employment_type TEXT,
         compensation_text TEXT,
@@ -362,6 +378,15 @@ export class JobStore {
         UNIQUE(target, post_id)
       );
     `);
+    this.db.transaction(() => {
+      const columns = this.db.pragma("table_info(job_leads)") as { name: string }[];
+      if (!columns.some(column => column.name === "remote_eligibility_raw")) this.db.exec("ALTER TABLE job_leads ADD COLUMN remote_eligibility_raw TEXT");
+    }).immediate();
+  }
+
+  findLeadByCanonicalUrl(url: string): JobLeadRecord | undefined {
+    const row = this.db.prepare("SELECT * FROM job_leads WHERE canonical_url = ? ORDER BY created_at LIMIT 1").get(url) as SqlRow | undefined;
+    return row ? toLeadRecord(row) : undefined;
   }
 
   findLeadByDuplicateKey(duplicateKey: string): JobLeadRecord | undefined {
@@ -403,6 +428,7 @@ export class JobStore {
           location_raw,
           work_model,
           office_location_raw,
+          remote_eligibility_raw,
           seniority,
           employment_type,
           compensation_text,
@@ -439,6 +465,7 @@ export class JobStore {
           @locationRaw,
           @workModel,
           @officeLocationRaw,
+          @remoteEligibility,
           @seniority,
           @employmentType,
           @compensationText,
@@ -475,6 +502,7 @@ export class JobStore {
           location_raw = excluded.location_raw,
           work_model = excluded.work_model,
           office_location_raw = excluded.office_location_raw,
+          remote_eligibility_raw = excluded.remote_eligibility_raw,
           seniority = excluded.seniority,
           employment_type = excluded.employment_type,
           compensation_text = excluded.compensation_text,
@@ -502,6 +530,7 @@ export class JobStore {
       `)
       .run({
         ...lead,
+        remoteEligibility: lead.remoteEligibility ?? null,
         skillsJson: encodeJson(lead.skills),
         riskFlagsJson: encodeJson(lead.riskFlags),
         resumeMatchJson: encodeJson(lead.resumeMatch),
@@ -1087,34 +1116,43 @@ export class JobStore {
     resumeVariantId?: string;
     draftPacketJson?: string;
     resumeMatchJson?: string;
+    reviewContext?: ReviewActionContext;
   }): JobLeadRecord {
-    const lead = this.getLead(params.leadId);
-    if (!lead) {
-      throw new Error(`Lead not found: ${params.leadId}`);
-    }
+    // Take the write lock before admission so independent connections cannot reuse an interaction.
+    return this.db.transaction(() => {
+      if (params.reviewContext && this.db.prepare(`
+        SELECT 1 FROM review_events WHERE json_extract(payload_json, '$.interactionId') = ? LIMIT 1
+      `).get(params.reviewContext.interactionId)) {
+        throw new ReplayedReviewInteractionError();
+      }
+      const lead = this.getLead(params.leadId);
+      if (!lead) {
+        throw new Error(`Lead not found: ${params.leadId}`);
+      }
 
-    const updated: JobLeadRecord = {
-      ...lead,
-      reviewStatus: params.status ?? lead.reviewStatus,
-      draftPacket: params.draftPacketJson ? decodeJson(params.draftPacketJson) : lead.draftPacket,
-      resumeMatch: params.resumeMatchJson ? decodeJson(params.resumeMatchJson) : lead.resumeMatch,
-      updatedAt: new Date().toISOString()
-    };
+      const updated: JobLeadRecord = {
+        ...lead,
+        reviewStatus: params.status ?? lead.reviewStatus,
+        draftPacket: params.draftPacketJson ? decodeJson(params.draftPacketJson) : lead.draftPacket,
+        resumeMatch: params.resumeMatchJson ? decodeJson(params.resumeMatchJson) : lead.resumeMatch,
+        updatedAt: new Date().toISOString()
+      };
 
-    this.saveLead(updated);
+      this.saveLead(updated);
 
-    if (params.status) {
-      this.appendReviewEvent(lead.leadId, "status_changed", { status: params.status });
-    }
+      if (params.status) {
+        this.appendReviewEvent(lead.leadId, "status_changed", { ...params.reviewContext, status: params.status });
+      }
 
-    if (params.note) {
-      this.appendReviewEvent(lead.leadId, "note", { note: params.note });
-    }
+      if (params.note) {
+        this.appendReviewEvent(lead.leadId, "note", { ...params.reviewContext, note: params.note });
+      }
 
-    if (params.resumeVariantId) {
-      this.appendReviewEvent(lead.leadId, "resume_changed", { resumeVariantId: params.resumeVariantId });
-    }
+      if (params.resumeVariantId) {
+        this.appendReviewEvent(lead.leadId, "resume_changed", { resumeVariantId: params.resumeVariantId });
+      }
 
-    return updated;
+      return updated;
+    }).immediate();
   }
 }

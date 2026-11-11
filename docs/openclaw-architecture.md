@@ -1,5 +1,7 @@
 # OpenClaw Architecture
 
+This document describes the shared ingestion, policy and canonical-state layers. The [LinkedIn workflow](linkedin-workflow.md) owns the dedicated email-to-thread route, fit/resume preparation, delivery recovery and acceptance boundaries.
+
 ## Component Layout
 
 - [`src/core/`](/home/kevin/coding/openclaw/src/core)
@@ -21,7 +23,7 @@
 
 ## End-To-End Flow
 
-1. Fixture replay, browser-backed Indeed sync, browser-backed X/Twitter news sync, or future Gmail Pub/Sub produces inbound alert content.
+1. Fixture replay, trusted captured Gmail intake, browser-backed Indeed sync, browser-backed X/Twitter news sync, or future live Gmail Pub/Sub produces inbound content. The [LinkedIn workflow](linkedin-workflow.md) defines the captured-email trust contract.
 2. The parser converts provider-specific alert content into structured lead candidates.
 3. The policy layer evaluates:
    - remote Canada eligibility
