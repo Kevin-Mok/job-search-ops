@@ -16,8 +16,8 @@ Use the local synthetic demo to check replay, per-job review threads, private re
   Expected: GET failures before a new write retry without inventing uncertainty or resending known receipts. Existing POST uncertainty survives failed readback and requires matching receipts; permission blocks stay terminal.
 - Action: Use two fixture processes against the same private journal, exercising alert, thread, fit and attachment writes through `tests/linkedin-transport.test.ts`, then reopen the journal. Repeat an attachment key with different bytes.
   Expected: Every successful receipt remains readable after restart, original journal entries survive, and repeating an attachment preserves its first bytes. The adjacent private SQLite file serializes mutations without changing the journal format.
-- Action: Select a manual resume with `set-resume`, then ingest a newer observation of the same posting, including one with changed requirements. Repeat after an explicit rejection.
-  Expected: The chosen resume survives source refresh; the derived packet uses the current target and final operator state. Rejection still prevents delivery.
+- Action: Select a manual resume with `set-resume`, then ingest a newer observation of the same posting, including one with changed requirements. Repeat after explicit rejected and duplicate decisions through `JobStore.updateLeadReview`, with prior eligibility approval and queued work; attempt alert drain, enrichment and prepared dispatch.
+  Expected: The chosen resume survives source refresh; the derived packet uses the current target and final operator state. Audited rejection and duplicate holds survive unchanged and changed posting refreshes and prevent alerts, enrichment and prepared dispatch until explicit operator reapproval.
 
 ## Captured connections and operator provenance
 
@@ -36,6 +36,8 @@ Use the local synthetic demo to check replay, per-job review threads, private re
 
 - Action: Run `node scripts/linkedin-demo.mjs --output-dir data/linkedin-demo --phase prepare --portfolio-root /absolute/path/to/portfolio-site` and inspect both returned PNG paths.
   Expected: Two synthetic eligible drafts, each one-page Letter with readable local CMU/bold text and the right target. No clipping, overlap or missing approved claims. A separate location-unknown job remains needs_review; the rejected location remains ineligible. Sparse synthetic content does not prove real candidate quality.
+- Action: In a fresh output directory, run intake with both `--candidate fixtures/resume/representative-candidate.json --evidence fixtures/resume/representative-evidence.json`, then prepare with the read-only portfolio root. Inspect each exact returned PNG before attachment. Run the environment-enabled `tests/resume-layout.test.ts` control for both target titles and a long wrapping target.
+  Expected: Two synthetic full-profile pages with twelve unchanged bullets, local regular/bold CMU, canonical 32.25–579.75pt horizontal text bounds, readable section/bullet spacing, no clipping and one-page Letter. The matched-content control agrees within 0.3pt per word box; long text wraps without page stretching. The deliberately sparse demo and held real statements are separate content limits. Existing run bytes/approvals are not reused for the corrected rendering.
 - Action: After inspecting the exact pages, run the demo with `--phase attach --approve-visual --portfolio-root /absolute/path/to/portfolio-site`, then repeat intake and prepare.
   Expected: Exact PDF hashes are associated with attachment receipts in each original fixture thread. Repeated work preserves two completed artifacts and does not create another alert/thread/attachment. Neither application submission nor automatic applied status occurs.
 - Action: Run the environment-enabled workflow tests documented in [the runbook](linkedin-workflow.md), including tampered PDF and eligibility revocation during validation.
@@ -59,6 +61,15 @@ Use the local synthetic demo to check replay, per-job review threads, private re
 
 - Action: Review the runbook's explicit private text-channel and authenticated-email prerequisites before selecting any real destination.
   Expected: No production destination is inferred. Live Gmail/parser/Discord acceptance is marked unverified until separately authorized credentials and destination are supplied; no fixture result is presented as live evidence.
+
+## Portable CI and posting layout
+
+- Action: With Node22, pnpm9.15.4, Chrome and Poppler installed, fetch assets using `pnpm exec node scripts/resume-ci-assets.mjs --setup --root /absolute/new/renderer-assets`, then repeat `--check --root /absolute/new/renderer-assets`. Try `--check` on an empty directory and `--setup` on the existing asset directory.
+  Expected: The immutable sixteen-file manifest verifies; missing bytes fail with setup instructions and an existing directory is never replaced. No portfolio generation/calibration or account access.
+- Action: Run `env JOB_OPS_PORTFOLIO_ROOT=/absolute/new/renderer-assets JOB_OPS_LAYOUT_PROOF_DIR=/absolute/new/synthetic-proof pnpm run test:ci` and inspect the exact `support/`, `python/` and `long/` PNGs plus coverage/geometry JSON. Compare the changed supported bullet selection and Python-first ordering against the frozen fact bank.
+  Expected: Zero renderer skips; each page is Letter, embedded regular/bold CMU, all selected approved text/links intact, readable canonical heading/bullet rhythm with no clipping/overlap. Normal samples have eleven bullets and explicit external coverage gaps; long target wraps with twelve. Every selected bullet has visible disc pixels, and every word matches independent canonical context within0.3pt and fill remains35–100.5pt. Missing-inset negative is rejected; combined long-entry overflow remains rejected, without compressing text.
+- Action: On the new prerequisite pull request, open the actual `CI / Node 22 tests and build` run and download `synthetic-resume-proof-<head>`; inspect its exact PDF/PNG previews and diagnostics, including on an intentionally failing test branch when needed.
+  Expected: The final pushed head has a real successful full-suite/build conclusion and synthetic artifacts. Asset setup, test and build failures propagate through `tee` under the explicit Bash job default; available diagnostic logs remain uploaded even when a step fails. No private journal/profile upload, live posting fetch or model call. Local tests alone are not hosted acceptance.
 
 ## Delivery validation
 

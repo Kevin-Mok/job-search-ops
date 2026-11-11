@@ -1,0 +1,109 @@
+{
+  "name": "Alex Example",
+  "email": "alex@example.test",
+  "profile": {
+    "version": 1,
+    "baseline": {
+      "variantId": "web-dev",
+      "sources": [
+        {
+          "path": "app/styles/13-resume-latex.css",
+          "sha256": "d533c912b8f7f37821c0c507ef9ea7eb195970a526797348833e1d1fc781ada9"
+        }
+      ]
+    },
+    "contact": {
+      "phone": "555-0100",
+      "linkedin": "linkedin.com/in/alex-example",
+      "github": "github.com/alex-example"
+    },
+    "sectionTitles": {
+      "experience": "Experience",
+      "projects": "Projects",
+      "skills": "Skills",
+      "education": "Education"
+    },
+    "experience": [
+      {
+        "company": "Example Studio",
+        "companyUrl": "https://example.test/studio",
+        "title": "Application Developer",
+        "date": "2024 - 2025",
+        "languages": [
+          "Python",
+          "TypeScript"
+        ],
+        "evidenceIds": [
+          "synthetic-studio-ui",
+          "synthetic-studio-api",
+          "synthetic-studio-nav"
+        ]
+      },
+      {
+        "company": "Example Helpdesk",
+        "title": "Support Analyst",
+        "date": "2023 - 2024",
+        "languages": [],
+        "evidenceIds": [
+          "synthetic-support-triage",
+          "synthetic-support-tools",
+          "synthetic-support-training"
+        ]
+      }
+    ],
+    "projects": [
+      {
+        "name": "Example Importer",
+        "url": "https://example.test/importer",
+        "date": "2026",
+        "languages": [
+          "Python",
+          "SQLite"
+        ],
+        "evidenceIds": [
+          "synthetic-importer-parse",
+          "synthetic-importer-test",
+          "synthetic-importer-docs"
+        ]
+      },
+      {
+        "name": "Example Project Portal",
+        "url": "https://example.test/portal",
+        "date": "2025 - 2026",
+        "languages": [
+          "TypeScript",
+          "React",
+          "Node.js"
+        ],
+        "evidenceIds": [
+          "synthetic-portal-ui",
+          "synthetic-portal-api",
+          "synthetic-portal-test"
+        ]
+      }
+    ],
+    "skills": [
+      "Python",
+      "TypeScript",
+      "React",
+      "Node.js",
+      "SQL",
+      "Git",
+      "Linux",
+      "Customer support"
+    ],
+    "skillsBold": [
+      "Python",
+      "TypeScript",
+      "React"
+    ],
+    "education": [
+      {
+        "institution": "Example University",
+        "degree": "Computer Science",
+        "gpa": "3.8 GPA. Graduated with distinction.",
+        "date": "2019 - 2023"
+      }
+    ]
+  }
+}

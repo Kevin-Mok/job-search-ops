@@ -3,7 +3,9 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { describe, expect, test } from "vitest";
-import { ingestLinkedInEmail } from "../src/core/linkedin-route.js";
+import { drainLinkedInAlerts, ingestLinkedInEmail } from "../src/core/linkedin-route.js";
+import { postingVersion, processLinkedInWork, queueLinkedInWork } from "../src/core/job-workflow.js";
+import { createFixtureLinkedInTransport } from "../src/discord/linkedin-transport.js";
 import { parseEmailFixture } from "../src/core/parsing.js";
 import { ingestParsedLeads } from "../src/core/pipeline.js";
 import { JobStore } from "../src/db/store.js";
@@ -20,6 +22,33 @@ function setup() {
 }
 
 describe("LinkedIn source refresh preserves operator decisions", () => {
+  test.each(["rejected", "duplicate"] as const)("audited %s hold survives refresh and prevents alert and enrichment admission", async status => {
+    const { store, first, leadId } = setup();
+    const version = postingVersion(store.getLead(leadId)!);
+    store.work.decideEligibility({ leadId, postingVersion: version, eligibility: "eligible", reason: "Synthetic requirements approved." });
+    const directory = path.dirname(store.dbPath);
+    const transport = createFixtureLinkedInTransport(path.join(directory, "discord.json"));
+    queueLinkedInWork(store, transport.target);
+    store.updateLeadReview({ leadId, status, note: "Synthetic audited hold." });
+    const events = store.listReviewEvents(leadId);
+    for (const changed of [false, true]) {
+      ingestLinkedInEmail(store, {
+        ...first, messageId: `held-refresh-${changed}`, receivedAt: "2026-03-13T10:00:00Z",
+        textBody: changed ? first.textBody.replace("Company: Maple Systems", "Company: Updated Employer") : first.textBody
+      }, { fixture: true });
+      const refreshed = new JobStore(store.dbPath).getLead(leadId)!;
+      expect(refreshed.reviewStatus).toBe(status);
+      expect(postingVersion(refreshed) === version).toBe(!changed);
+      expect(store.listReviewEvents(leadId)).toEqual(events);
+      await drainLinkedInAlerts({ store, transport });
+      expect(store.linkedin.listDeliveries(transport.target)[0].status).toBe("held");
+      const work = await processLinkedInWork({ store, transport, privateDir: directory });
+      expect(work.every(item => item.eligibility === "ineligible" && !item.fitDelivery && !item.preparedPath)).toBe(true);
+      expect(fs.existsSync(path.join(directory, "discord.json"))).toBe(false);
+    }
+    expect(store.work.decision(leadId, version)?.eligibility).toBe("eligible");
+  });
+
   test.each([false, true])("retains a CLI resume selection when posting content changes: %s", changed => {
     const { store, first, leadId } = setup();
     const selection = spawnSync(process.execPath, ["--import", "tsx", "src/cli.ts", "set-resume", "--db", store.dbPath, "--lead-id", leadId, "--resume", "sales"], { encoding: "utf8", timeout: 30_000 });

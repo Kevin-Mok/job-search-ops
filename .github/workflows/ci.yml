@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'fm/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: resume-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test-build:
+    name: Node 22 tests and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Set runner-local proof paths
+        run: |
+          echo "JOB_OPS_PORTFOLIO_ROOT=$RUNNER_TEMP/resume-portfolio" >> "$GITHUB_ENV"
+          echo "JOB_OPS_LAYOUT_PROOF_DIR=$RUNNER_TEMP/synthetic-resume-proof" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.15.0
+          cache: pnpm
+      - name: Install locked dependencies and native SQLite
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm rebuild better-sqlite3
+          pnpm exec node --input-type=module -e 'import Database from "better-sqlite3"; const db = new Database(":memory:"); console.log(db.prepare("select sqlite_version() as version").get()); db.close();'
+      - name: Install PDF tools and verify Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends poppler-utils
+          google-chrome --version
+      - name: Fetch pinned public renderer assets
+        run: |
+          mkdir -p "$JOB_OPS_LAYOUT_PROOF_DIR"
+          pnpm exec node scripts/resume-ci-assets.mjs --setup --root "$JOB_OPS_PORTFOLIO_ROOT" 2>&1 | tee "$JOB_OPS_LAYOUT_PROOF_DIR/asset-setup.log"
+      - name: Run full suite including mandatory PDF rendering
+        run: pnpm run test:ci 2>&1 | tee "$JOB_OPS_LAYOUT_PROOF_DIR/tests.log"
+      - name: TypeScript build
+        run: pnpm build 2>&1 | tee "$JOB_OPS_LAYOUT_PROOF_DIR/build.log"
+      - name: Preserve synthetic previews and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-resume-proof-${{ github.sha }}
+          path: ${{ env.JOB_OPS_LAYOUT_PROOF_DIR }}/
+          if-no-files-found: warn
+          retention-days: 14

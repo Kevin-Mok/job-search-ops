@@ -1,0 +1,179 @@
+{
+  "retrievedAt": "2026-11-11T01:05:03.532586+00:00",
+  "purpose": "dated public requirement references for clearly synthetic offline examples only",
+  "realCandidateFactsUsed": false,
+  "applicationOrEligibilityAssessment": false,
+  "roles": [
+    {
+      "id": "support",
+      "fixtureEmployer": "Sample Support Co",
+      "sourceEmployer": "AutoTrader.ca",
+      "sourceRole": "Client Support Specialist",
+      "sourceUrl": "https://job-boards.greenhouse.io/autotradercanada/jobs/7632239003",
+      "context": "Toronto/Etobicoke hybrid; source describes office attendance. Context only, not a user eligibility decision.",
+      "requirements": [
+        {
+          "id": "S1",
+          "text": "Investigate client problems and select an appropriate resolution.",
+          "importance": "core",
+          "evidenceIds": [
+            "synthetic-support-tools",
+            "synthetic-support-triage"
+          ],
+          "coverage": "partial",
+          "gap": "Guide/triage evidence only; actual client resolutions unproven."
+        },
+        {
+          "id": "S2",
+          "text": "Communicate clearly through client phone/email channels and timely follow-up.",
+          "importance": "core",
+          "evidenceIds": [
+            "synthetic-support-triage"
+          ],
+          "coverage": "partial",
+          "gap": "Follow-up procedures only; phone/email delivery unproven."
+        },
+        {
+          "id": "S3",
+          "text": "Coordinate technical, billing and fulfillment escalations across teams.",
+          "importance": "core",
+          "evidenceIds": [
+            "synthetic-support-training"
+          ],
+          "coverage": "partial",
+          "gap": "Team handoffs only; billing/fulfillment ownership unproven."
+        },
+        {
+          "id": "S4",
+          "text": "Maintain accurate customer-account information in CRM.",
+          "importance": "core",
+          "evidenceIds": [],
+          "coverage": "gap",
+          "gap": "No CRM account maintenance evidence."
+        },
+        {
+          "id": "S5",
+          "text": "Prepare reports and analyze account activity; Excel experience is essential.",
+          "importance": "required",
+          "evidenceIds": [],
+          "coverage": "gap",
+          "gap": "No Excel/report analysis evidence."
+        },
+        {
+          "id": "S6",
+          "text": "College diploma, organized customer service and strong communication/analysis.",
+          "importance": "required",
+          "evidenceIds": [],
+          "coverage": "gap",
+          "gap": "CS degree retained; diploma equivalence and service outcomes unproven."
+        }
+      ],
+      "target": {
+        "title": "Customer Support Specialist",
+        "company": "Sample Support Co"
+      },
+      "selectedEvidenceIds": [
+        "synthetic-studio-ui",
+        "synthetic-studio-api",
+        "synthetic-studio-nav",
+        "synthetic-support-triage",
+        "synthetic-support-tools",
+        "synthetic-support-training",
+        "synthetic-importer-parse",
+        "synthetic-importer-test",
+        "synthetic-importer-docs",
+        "synthetic-portal-ui",
+        "synthetic-portal-api"
+      ]
+    },
+    {
+      "id": "python",
+      "fixtureEmployer": "Sample Cloud Co",
+      "sourceEmployer": "Canonical",
+      "sourceRole": "Graduate Python/cloud software engineering",
+      "sourceUrl": "https://canonical.com/careers/3257589/software-engineer-python-ubuntu-pro-client-graduate-level-remote",
+      "context": "Americas home-based role; international team-event travel appears in the posting. No user eligibility determination.",
+      "requirements": [
+        {
+          "id": "P1",
+          "text": "Strong Python development on Linux.",
+          "importance": "required",
+          "evidenceIds": [
+            "synthetic-studio-api",
+            "synthetic-importer-parse"
+          ],
+          "coverage": "partial",
+          "gap": "Python supported; Linux development unproven (skill label is not evidence)."
+        },
+        {
+          "id": "P2",
+          "text": "Build unit/functional tests and investigate defects carefully.",
+          "importance": "core",
+          "evidenceIds": [
+            "synthetic-importer-test"
+          ],
+          "coverage": "partial",
+          "gap": "Saved parser regressions supported; unit/functional test scope unproven."
+        },
+        {
+          "id": "P3",
+          "text": "Collaborate remotely and participate in code review.",
+          "importance": "core",
+          "evidenceIds": [
+            "synthetic-importer-docs"
+          ],
+          "coverage": "partial",
+          "gap": "Repeatable setup documentation only; remote code review unproven."
+        },
+        {
+          "id": "P4",
+          "text": "Develop and release Ubuntu/cloud-image improvements across environments.",
+          "importance": "core",
+          "evidenceIds": [],
+          "coverage": "gap",
+          "gap": "No Ubuntu/cloud-image release evidence."
+        },
+        {
+          "id": "P5",
+          "text": "Experience/interest in at least two areas: Ubuntu administration, CI, system contracts, Debian packaging or clouds.",
+          "importance": "required",
+          "evidenceIds": [],
+          "coverage": "gap",
+          "gap": "No evidence in two specified systems areas."
+        },
+        {
+          "id": "P6",
+          "text": "Relevant CS/STEM degree or equivalent; open-source participation is advantageous.",
+          "importance": "degree-or-equivalent required; open-source advantageous",
+          "evidenceIds": [],
+          "coverage": "partial",
+          "gap": "CS degree supported by fixed education; open-source participation unproven.",
+          "requiredEvidence": [
+            "profile.education[0]"
+          ],
+          "advantageousEvidence": []
+        }
+      ],
+      "target": {
+        "title": "Python Developer",
+        "company": "Sample Cloud Co"
+      },
+      "selectedEvidenceIds": [
+        "synthetic-studio-ui",
+        "synthetic-studio-api",
+        "synthetic-support-triage",
+        "synthetic-support-tools",
+        "synthetic-support-training",
+        "synthetic-importer-parse",
+        "synthetic-importer-test",
+        "synthetic-importer-docs",
+        "synthetic-portal-ui",
+        "synthetic-portal-api",
+        "synthetic-portal-test"
+      ]
+    }
+  ],
+  "copyright": "Concise paraphrases only; no full job descriptions copied.",
+  "accessLimit": "An alternative Lever source returned403 once and was not bypassed or used for unverified requirements.",
+  "snapshotSha256": "947666f3f30fd6b029e6ba3956ec748a9bd085103975c6799c6d83cbb838f411"
+}

@@ -1,0 +1,23 @@
+{
+  "repository": "https://github.com/Kevin-Mok/nextjs-portfolio-showcase",
+  "commit": "95692c77de7f7d2e8203cea751a8298b3a2cf330",
+  "license": "Repository declares no license. Fetch read-only public sources for this authorized verification; do not vendor or redistribute them. No candidate data is fetched.",
+  "files": {
+    "app/styles/03-fonts.css": "4177fb84a686401f2faab23f070fa20277a922e918a5183f5f94eb7b99825b6b",
+    "app/styles/05-base.css": "fdb324e88f0c5eabcb1895b49beb88ab1e9ae97e6986fd59356293b52ebf7ff7",
+    "app/styles/06-typography.css": "fc19a0226225b51e45d2b753d283c83a164c1d63f1b76ca7629a60cf0bacce0d",
+    "app/styles/09-utilities.css": "8c9d2d6468e834b221889acae4f31dbfb9fc5ad7bbde2735ed436c626a2c32cb",
+    "app/styles/13-resume-latex.css": "d533c912b8f7f37821c0c507ef9ea7eb195970a526797348833e1d1fc781ada9",
+    "public/fonts/cmu/cmunrm.woff": "32115abbbfb231586813333bfa5a234f4dc7f28b27df7260f42f81146ccd9097",
+    "public/fonts/cmu/cmunbx.woff": "3226e8a7068df32b96f2a80f7ad2ca306c8dfcc494ab2b337019cbb7d098db24",
+    "public/fonts/cmu/cmunti.woff": "d9a02b7b67874c62f47f9c9a0914c115972ab77d43e82a163baf0888eb5d4a2d",
+    "public/fonts/cmu/cmunbi.woff": "c91f3defd696023069b9953de078bf0f27a32218e08405ebfbf50c29d10004ab",
+    "scripts/measure-resume-bottom-whitespace.mjs": "802cdc40bc056a673e9e865c83e12ab9a0bce5c03922e397e824469e2602a57d",
+    "scripts/verify-resume-layout.mjs": "8e2b9371bbbdd1a9c5ebc15b3feea8a391c1a15d3f566d7d34f878c76bce02b2",
+    "scripts/lib/pdf-layout-metrics.mjs": "6c5bbfd1d442a702db18c5b8d6a33f8fe9503891c7e2048db1efff85ec1e98fc",
+    "scripts/lib/resume-pdf-variants.mjs": "0a3ae1ba6d152d63fd3191efb31c0246bfd7ed72c219693a78cc3c43b040161e",
+    "scripts/lib/resume-layout-baseline.mjs": "a93b39bda30fb5012467886c6805f35c00e9ac8ef06a1f81cba82b4ebf811a53",
+    "scripts/lib/resume-layout-constraints.mjs": "31591c3fde8f14b95899a30d5c3afc27d786a857ddd43938671fefeb73ceac67",
+    "docs/resume/resume-layout-baseline.json": "df77c7a252b1132cff32b806aaaac774fa8ce830087c9a5ef285b84b850a720d"
+  }
+}

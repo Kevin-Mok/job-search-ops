@@ -24,6 +24,25 @@ async function fixture() {
 }
 
 describe("read-only Codex planning boundary", () => {
+  test.each(["rejected", "duplicate"] as const)("audited %s hold blocks prepared dispatch before and after refresh", async status => {
+    const { store, privateDir, work, lead, plan } = await fixture();
+    store.updateLeadReview({ leadId: lead.leadId, status, note: "Synthetic audited hold." });
+    const events = store.listReviewEvents(lead.leadId);
+    const before = store.work.get(work.workId);
+    const email = JSON.parse(fs.readFileSync("fixtures/email/linkedin-alert-2026-03-12.json", "utf8"));
+    for (const refreshed of [false, true]) {
+      if (refreshed) ingestLinkedInEmail(store, { ...email, messageId: "held-posting-refresh", receivedAt: "2026-03-13T10:00:00Z", textBody: email.textBody.split("\n---\n")[0] }, { fixture: true });
+      expect(() => planCodexResumeDispatch({ store, privateDir, workId: work.workId })).toThrow(/eligibility approval/);
+      expect(store.getLead(lead.leadId)?.reviewStatus).toBe(status);
+      expect(postingVersion(store.getLead(lead.leadId)!)).toBe(work.postingVersion);
+      expect(store.work.get(work.workId)).toEqual(before);
+      expect(store.listReviewEvents(lead.leadId)).toEqual(events);
+      expect(fs.existsSync(plan.receiptPath)).toBe(false);
+    }
+    store.updateLeadReview({ leadId: lead.leadId, status: "approved_for_manual_apply" });
+    expect(planCodexResumeDispatch({ store, privateDir, workId: work.workId })).toEqual(plan);
+  });
+
   test("replanning after restart is deterministic and preserves work, decisions and private inputs", async () => {
     const { store, privateDir, work, lead, plan } = await fixture();
     const before = store.work.get(work.workId);
