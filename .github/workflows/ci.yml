@@ -22,10 +22,11 @@ jobs:
     defaults:
       run:
         shell: bash
-    env:
-      JOB_OPS_PORTFOLIO_ROOT: ${{ runner.temp }}/resume-portfolio
-      JOB_OPS_LAYOUT_PROOF_DIR: ${{ runner.temp }}/synthetic-resume-proof
     steps:
+      - name: Set runner-local proof paths
+        run: |
+          echo "JOB_OPS_PORTFOLIO_ROOT=$RUNNER_TEMP/resume-portfolio" >> "$GITHUB_ENV"
+          echo "JOB_OPS_LAYOUT_PROOF_DIR=$RUNNER_TEMP/synthetic-resume-proof" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
