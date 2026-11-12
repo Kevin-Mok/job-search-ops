@@ -61,3 +61,10 @@ Supervisor inbox004/005 follow-up: explicit private requirements-runtime-evidenc
 - [x] Replace stale Indeed setup, login, recovery and scheduling instructions with pointers to the review runbook; mark earlier Indeed plans as historical. Correct foundation/architecture, TODO and workspace claims about legacy drafts and source intake.
 - [x] Clarify immutable historical decisions versus current acceptance in the owner runbook, and distinguish fixture PDF attachment from the disabled real upload path. Preserve optional quote input and approved fixture/test bytes.
 - [x] Static checks: Node v22.15.0; TypeScript `tsc --noEmit -p tsconfig.json`, `node --check` for both changed demo scripts, relative-link checks for changed Markdown and `git diff --check` all exited 0. No dedicated linter or formatter is configured. No tests, behavioral validation, configuration refresh, commit, push, PR or CI phase was run here.
+
+### CI missing CLI build correction
+
+- [x] Reproduce the supplied CI failure with the renderer-enabled description CLI test and no compiled output: 1 failed, 1 passed, `MODULE_NOT_FOUND` for `dist/src/cli.js`.
+- [x] Establish the build prerequisite inside that test before all demo commands/phases, using the sibling demo test's build invocation. Preserve renderer-disabled skipping, product behavior, fixtures and privacy policy.
+- [x] Node v22.15.0 focused GREEN: both tests passed. Full `pnpm run test:ci` with worktree-local pinned renderer assets: 462 tests passed in 31 files, zero skips, including the build assertion and mandatory PDF rendering. Incident: [CLI build order](../docs/postmortem/2026-11-12-description-cli-build-order.md). External learning registration remains outside the allowed workspace.
+- Hosted CI rerun and all publication phases belong to the outer executor; no commit, push, merge or pipeline control performed.

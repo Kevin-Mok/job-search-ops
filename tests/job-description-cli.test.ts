@@ -9,6 +9,8 @@ import { spawnSync } from 'node:child_process';
 import { expect, test } from 'vitest';
 
 test.runIf(Boolean(process.env.JOB_OPS_PORTFOLIO_ROOT))('actual CLI full-paste/PDF/history/restart/invalidation proof', () => {
+  const build = spawnSync('pnpm', ['build'], { encoding: 'utf8', timeout: 60_000 });
+  expect(build.status, `${build.stdout}\n${build.stderr}`).toBe(0);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'description-cli-'));
   const run = (phase: string) => {
     const result = spawnSync(process.execPath, ['scripts/job-description-demo.mjs', '--output-dir', dir, '--portfolio-root', process.env.JOB_OPS_PORTFOLIO_ROOT!, '--phase', phase, ...(phase === 'verify' ? ['--approve-visual'] : [])], { encoding: 'utf8', timeout: 60_000 });
