@@ -134,8 +134,11 @@ function ingest(store:JobStore,row:PublicPosting):string {
   const payload={source:'linkedin' as const,sourceMessageId:`public:${row.jobId}`,sourceItemKey:row.jobId,sourceFixture:'private:linkedin_public',title:row.title||'Unknown public posting',company:row.company||'Unknown',locationRaw:row.location||'Unknown',workModel:row.workModel,officeLocationRaw:row.workModel==='hybrid'||row.workModel==='onsite'?row.location:undefined,seniority:'unknown' as const,skills:['typescript','javascript','python','sql','react','node.js','java','aws','docker'].filter(skill=>new RegExp(`\\b${skill.replaceAll('.', '\\.')}\\b`, 'i').test(row.description)),canonicalUrl:row.url,normalizedDescription:row.description};
   const version=crypto.createHash('sha256').update(JSON.stringify(row)).digest('hex');
   const result=store.linkedin.ingest({messageId:payload.sourceMessageId,version,receivedAt:row.capturedAt,payload:row},()=>{
+    const latest=store.linkedin.latestPosting(row.url);
+    if (latest && Date.parse(latest.receivedAt)>Date.parse(row.capturedAt)) return [latest.leadId];
     const leadIds=ingestParsedLeads(store,[payload],true).touchedLeadIds;
     store.descriptions.capturePublic(leadIds[0],row);
+    store.linkedin.observePosting(row.url,row.capturedAt,leadIds[0]);
     return leadIds;
   });
   return result.leadIds[0];

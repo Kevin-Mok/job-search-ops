@@ -1,0 +1,13 @@
+# Public posting observation freshness
+
+This report covers delayed local snippets replacing newer public descriptions. Reproduce the ordering with synthetic email and saved captures, update the shared observation transaction, and verify offline recovery without changing legacy route bytes.
+
+- Symptom: a 10:00 local email followed by an 11:00 public capture leaves the observation at 10:00; a delayed 10:30 email replaces the full posting and makes its accepted description stale.
+- Root cause: public ingestion persisted the lead and description without consulting or advancing the observation ledger consumed by email freshness checks. Saved captures first ingested after a newer observation could also overwrite a newer posting or description hold.
+- Invariant/scope: newest observation controls the current posting and description across search/URL ingestion, saved-capture recovery, duplicate replay, local email, and held descriptions.
+- Lookup: `freshness observation replay` returned unrelated causal timeline, quota jitter and Compose findings. None gives a specific applicable remedy; direct caller/transaction inspection and regressions provide the evidence.
+- Defining RED: 9/9 initial synthetic freshness cases failed as expected for missing observations/out-of-order replacement. ISO fixtures subsequently use the same millisecond representation as emitted captures; two cached historical replay controls were added. No production network was used.
+- Resolution: inside the existing public ingestion transaction, skip capture mutation if a newer posting observation exists; otherwise persist the capture observation with its lead and immutable description. Keep deduplicated replay unchanged. No new state, retries or migration subsystem.
+- Retrace: delayed emails now read the public timestamp; fresh saved historical ingestion cannot rewind the latest snapshot; duplicate historical ingestion remains a no-op. Both newer email and newer held-public paths preserve their current state. Description persistence failure rolls back lead and observation changes; recovery retries from the saved synthetic capture.
+- Verification: final focused run passed 80 tests in 3 files, zero skips, exit 0; all 11 freshness cases and the unchanged 17 R1/R2 review cases passed (`data/review-freshness-green.log`). Node18 was available; Node22 and broader gates remain outer-owned. No claims about real capture, provider blocking, approved profiles, PDFs or delivery. The spent live exception and real cooldown remain untouched.
+- External learning registration under `/home/kevin/linux-config/dot_agents/skills/postmortem-memory/` remains outer-owner work because this phase may only write inside its worktree. No installed memory/configuration was edited.

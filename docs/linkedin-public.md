@@ -84,3 +84,5 @@ This is a proven synthetic defect and code correction, **not the diagnosed cause
 Public ingestion recognizes complete skill names: JavaScript alone does not declare Java, and punctuation in Node.js is literal. Search, URL capture and persisted replay share this extraction path before fit scoring.
 
 Initial alert/thread authorization refusals occur before the write and retain a retryable delivery with its existing key and any confirmed alert receipt. After admission is restored and the recorded backoff expires, draining the same database resumes delivery. Interrupted POSTs still require receipt readback; a missing bounded-history match never authorizes a duplicate write.
+
+Public snapshots also advance the shared posting-observation timestamp in the same transaction as lead and description persistence. A delayed local email cannot replace a newer full public snapshot. Saved captures older than the latest observation are recorded as ingested without replacing current content or description holds; already-ingested replay leaves the current state unchanged.
