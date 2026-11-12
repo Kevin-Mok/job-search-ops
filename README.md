@@ -14,7 +14,7 @@ The POC is intentionally fixture-first. It can ingest replayable Indeed and Link
 | Vitest | Synthetic regression coverage for ingestion, recovery and operator actions |
 | Chrome / Poppler / portfolio CMU assets | Private job-specific PDF drafts using existing fonts, layout checks and exact-byte validation |
 
-The new [LinkedIn workflow](docs/linkedin-workflow.md) connects normalized email intake, stable threads, evidence-backed fit, every-eligible-job prepared work, and exact PDF attachment through a local fixture transport. Real mailbox/Discord delivery remains a separate authorized test gate.
+The new [LinkedIn workflow](docs/linkedin-workflow.md) connects normalized email intake, stable threads, evidence-backed fit, prepared work for eligible jobs with accepted descriptions, and exact PDF attachment through a local fixture transport. Real mailbox/text-only Discord delivery remains a separate authorized test gate; PDF uploads are disabled.
 
 ## What Is Implemented
 
@@ -139,7 +139,6 @@ Inspect one lead:
 
 ```bash
 pnpm show:lead -- --db data/fresh.sqlite --lead-id maple-systems-junior-python-developer
-pnpm draft:packet -- --db data/fresh.sqlite --lead-id maple-systems-junior-python-developer
 ```
 
 Apply operator actions:
@@ -153,6 +152,8 @@ pnpm apply-status:job -- --db data/fresh.sqlite --lead-id maple-systems-junior-p
 ```
 
 Local full-description capture:
+
+Legacy `draft:packet` refuses unaccepted descriptions and otherwise reports a hold; it does not generate application drafts.
 
 Use `node dist/src/cli.js description-template --db PRIVATE_DB --lead-id HELD_JOB_ID --output PRIVATE_JSON` to create a prefilled review file. Paste the entire description into `body`, retain the canonical identity/source URL, add any exact requirement quotes to `requirements`, review `capturedAt`, and explicitly set `fullDescriptionConfirmed` to true. Capture with `description-capture --db PRIVATE_DB --input PRIVATE_JSON`; inspect metadata using `description-state --db PRIVATE_DB --lead-id HELD_JOB_ID`. Files stay local; do not attach real inputs to Discord. Run the existing eligibility and approved-evidence `linkedin-work` commands only after acceptance. See the [review runbook](docs/linkedin-workflow.md#local-full-description-review-pr1).
 

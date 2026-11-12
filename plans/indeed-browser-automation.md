@@ -1,5 +1,7 @@
 # Indeed Browser Automation ExecPlan
 
+Historical implementation record, superseded by the [PR1 source boundaries](../docs/linkedin-workflow.md#local-full-description-review-pr1). The goals and verification below describe the earlier implementation, not current operating instructions.
+
 ## Goal
 
 Replace the current direct HTTP Indeed fetch path with an OpenClaw browser-driven session that uses a persistent browser profile, browser-managed cookies/storage, and rendered DOM extraction while preserving the canonical SQLite ingest and Discord delivery flow.

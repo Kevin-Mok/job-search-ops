@@ -1,15 +1,6 @@
 ---
-description: Poll the configured Indeed alert and send newly prospective leads into Discord.
+description: Explain the hold on the legacy Indeed sync command.
 user-invocable: true
 ---
 
-When this skill is invoked:
-
-1. Run `pnpm sync:indeed -- --db data/job-ops.sqlite --config config/indeed-alerts.json --alert-id call-centre-canada-remote`.
-2. Summarize:
-   - pages fetched
-   - cards filtered before detail fetch
-   - leads created or updated
-   - deliveries succeeded or failed
-   - blocked-run errors if the sync failed
-3. Do not invent extra leads or outcomes beyond the command output.
+When this skill is invoked, explain the source hold using the [review runbook](../../../docs/linkedin-workflow.md#local-full-description-review-pr1) and direct the operator to local full-description review. Do not attempt browser sync or login.

@@ -1,5 +1,7 @@
 # Indeed Pass Auth ExecPlan
 
+Historical implementation record, superseded by the [PR1 source boundaries](../docs/linkedin-workflow.md#local-full-description-review-pr1). The goals and verification below describe the earlier implementation, not current operating instructions.
+
 ## Goal
 
 Add persistent Indeed login for the browser-backed sync by reusing the OpenClaw browser profile and reading machine-local credentials from `pass` when Indeed redirects the run to sign-in.

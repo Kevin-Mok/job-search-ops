@@ -1,5 +1,5 @@
 ---
-description: Change the chosen resume variant for a lead and regenerate its draft packet.
+description: Change the chosen resume variant for a lead; legacy drafting remains held.
 user-invocable: true
 ---
 
