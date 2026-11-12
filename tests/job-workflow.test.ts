@@ -1,3 +1,4 @@
+import { confirmSyntheticDescriptions } from "./helpers/manual-description.js";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -41,6 +42,7 @@ describe("durable per-job workflow", () => {
     const { store, transport, privateDir, calls } = setup();
     const { leadIds } = ingestLinkedInEmail(store, { ...email, textBody: email.textBody.split("\n---\n")[2] }, { fixture: true });
     await drainLinkedInAlerts({ store, transport });
+    confirmSyntheticDescriptions(store);
     const lead = store.getLead(leadIds[0])!;
     store.work.decideEligibility({ leadId: lead.leadId, postingVersion: postingVersion(lead), eligibility: "eligible", reason: "Synthetic requirements reviewed." });
     const [original] = await processLinkedInWork({ store, transport, privateDir, evidence, candidate });
@@ -61,6 +63,7 @@ describe("durable per-job workflow", () => {
     const one = { ...email, textBody: email.textBody.split("\n---\n")[2] };
     const { leadIds } = ingestLinkedInEmail(store, one, { fixture: true });
     await drainLinkedInAlerts({ store, transport });
+    confirmSyntheticDescriptions(store);
     const lead = store.getLead(leadIds[0])!;
     store.work.decideEligibility({ leadId: lead.leadId, postingVersion: postingVersion(lead), eligibility: "eligible", reason: "Synthetic initial review." });
     const [original] = await processLinkedInWork({ store, transport, privateDir, evidence, candidate });
@@ -76,6 +79,7 @@ describe("durable per-job workflow", () => {
     const { store, transport, privateDir } = setup();
     const { leadIds } = ingestLinkedInEmail(store, { ...email, textBody: email.textBody.split("\n---\n")[0] }, { fixture: true });
     await drainLinkedInAlerts({ store, transport });
+    confirmSyntheticDescriptions(store);
     const lead = store.getLead(leadIds[0])!;
     store.work.decideEligibility({ leadId: lead.leadId, postingVersion: postingVersion(lead), eligibility: "eligible", reason: "Synthetic initial review." });
     let sends = 0;
@@ -128,6 +132,7 @@ describe("durable per-job workflow", () => {
     const { store, transport, privateDir } = setup();
     const { leadIds } = ingestLinkedInEmail(store, { ...email, textBody: email.textBody.split("\n---\n")[0] }, { fixture: true });
     await drainLinkedInAlerts({ store, transport });
+    confirmSyntheticDescriptions(store);
     const lead = store.getLead(leadIds[0])!;
     store.work.decideEligibility({ leadId: lead.leadId, postingVersion: postingVersion(lead), eligibility: "eligible", reason: "Synthetic requirements reviewed." });
     let attemptBinding: string | undefined;
@@ -150,6 +155,7 @@ describe("durable per-job workflow", () => {
     const { store, transport, calls, privateDir } = setup();
     const { leadIds } = ingestLinkedInEmail(store, email, { fixture: true });
     await drainLinkedInAlerts({ store, transport });
+    confirmSyntheticDescriptions(store);
     const leads = leadIds.map(id => store.getLead(id)!).filter(lead => lead.locationDecision === "accepted");
     expect(leads).toHaveLength(2);
     for (const lead of leads) store.work.decideEligibility({ leadId: lead.leadId, postingVersion: postingVersion(lead), eligibility: "eligible", reason: "Synthetic fixture operator confirmed all hard requirements." });
@@ -177,6 +183,7 @@ describe("durable per-job workflow", () => {
     const { store, transport, privateDir } = setup();
     const { leadIds } = ingestLinkedInEmail(store, { ...email, textBody: email.textBody.split("\n---\n")[0] }, { fixture: true });
     await drainLinkedInAlerts({ store, transport });
+    confirmSyntheticDescriptions(store);
     const lead = store.getLead(leadIds[0])!;
     store.work.decideEligibility({ leadId: lead.leadId, postingVersion: postingVersion(lead), eligibility: "eligible", reason: "Synthetic operator approval." });
     const fullCandidate = { ...candidate, profile: {
@@ -207,6 +214,7 @@ describe("durable per-job workflow", () => {
     const first = { ...email, textBody: email.textBody.split("\n---\n")[0] };
     const { leadIds } = ingestLinkedInEmail(store, first, { fixture: true });
     await drainLinkedInAlerts({ store, transport });
+    confirmSyntheticDescriptions(store);
     const lead = store.getLead(leadIds[0])!;
     queueLinkedInWork(store, transport.target);
     expect(store.work.list()[0]).toMatchObject({ eligibility: "needs_review", status: "needs_review" });
@@ -223,6 +231,7 @@ describe("durable per-job workflow", () => {
     const one = { ...email, textBody: email.textBody.split("\n---\n")[0] };
     const { leadIds } = ingestLinkedInEmail(store, one, { fixture: true });
     await drainLinkedInAlerts({ store, transport });
+    confirmSyntheticDescriptions(store);
     const lead = store.getLead(leadIds[0])!;
     store.work.decideEligibility({ leadId: lead.leadId, postingVersion: postingVersion(lead), eligibility: "eligible", reason: "Synthetic operator review." });
     let posts = 0;
@@ -244,6 +253,7 @@ describe("durable per-job workflow", () => {
     const { store, transport, privateDir } = setup();
     const { leadIds } = ingestLinkedInEmail(store, { ...email, textBody: email.textBody.split("\n---\n")[0] }, { fixture: true });
     await drainLinkedInAlerts({ store, transport });
+    confirmSyntheticDescriptions(store);
     const lead = store.getLead(leadIds[0])!;
     const version = postingVersion(lead);
     store.work.decideEligibility({ leadId: lead.leadId, postingVersion: version, eligibility: "eligible", reason: "Synthetic initial review." });
@@ -270,6 +280,7 @@ describe("durable per-job workflow", () => {
     const transport = createFixtureLinkedInTransport(path.join(privateDir, "discord.json"));
     const { leadIds } = ingestLinkedInEmail(store, { ...email, textBody: email.textBody.split("\n---\n")[0] }, { fixture: true });
     await drainLinkedInAlerts({ store, transport });
+    confirmSyntheticDescriptions(store);
     const lead = store.getLead(leadIds[0])!;
     store.work.decideEligibility({ leadId: lead.leadId, postingVersion: postingVersion(lead), eligibility: "eligible", reason: "Synthetic operator confirmed all hard requirements." });
     const [work] = await processLinkedInWork({ store, transport, privateDir, evidence, candidate, portfolioRoot: process.env.JOB_OPS_PORTFOLIO_ROOT });

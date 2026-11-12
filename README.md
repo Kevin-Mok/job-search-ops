@@ -1,8 +1,8 @@
 # OpenClaw Job Ops POC
 
-This repo is a greenfield proof of concept for a private job-operations assistant built on top of OpenClaw. OpenClaw is treated here as the runtime, workspace, channel bridge, automation ingress, and tool surface. The product in this repo is the job-ingestion + review + drafting system that runs through OpenClaw.
+This private job-operations proof of concept helps operators turn scattered job alerts into reviewed, restart-safe application work. It reduces duplicate review and prevents incomplete descriptions from driving unsupported resume claims; recruiters and engineers can inspect synthetic evidence of the intake, policy and PDF boundaries. OpenClaw is treated here as the runtime, workspace, channel bridge, automation ingress, and tool surface. The product in this repo is the job-ingestion + review + drafting system that runs through OpenClaw.
 
-The POC is intentionally fixture-first. It can ingest replayable Indeed and LinkedIn alert fixtures, normalize and dedupe leads, evaluate Toronto location policy for `M1E 4V4`, choose a resume lane, draft application packets without inventing experience, derive a Discord review-thread plan from the canonical DB, run a browser-backed Indeed search sync that posts newly prospective leads into Discord, and run a browser-backed X/Twitter AI news sync that stores and delivers high-signal OpenAI/Codex/Claude/Anthropic and vibe-coding updates.
+The POC is intentionally fixture-first. It can ingest replayable Indeed and LinkedIn alert fixtures, normalize and dedupe leads, evaluate Toronto location policy for `M1E 4V4`, choose a resume lane, hold alert snippets until an operator confirms a full local description, prepare approved-evidence local PDFs, derive a Discord review-thread plan from the canonical DB, and run a browser-backed X/Twitter AI news sync that stores and delivers high-signal OpenAI/Codex/Claude/Anthropic and vibe-coding updates.
 
 ## Tech Stack And Why Chosen
 
@@ -24,7 +24,7 @@ The new [LinkedIn workflow](docs/linkedin-workflow.md) connects normalized email
 - Example Indeed alert config in [`config/indeed-alerts.example.json`](/home/kevin/coding/openclaw/config/indeed-alerts.example.json)
 - Example X news config in [`config/twitter-news.example.json`](/home/kevin/coding/openclaw/config/twitter-news.example.json)
 - Fixture-driven ingest pipeline and SQLite persistence under [`src/`](/home/kevin/coding/openclaw/src)
-- Browser-backed Indeed sync path with persistent OpenClaw browser profiles, blocked-page detection, sync-run audit records, and Discord feed delivery suppression
+- Persisted global/per-source job-source kill switches, with LinkedIn/Indeed automated budgets fixed at zero; the existing Indeed sync and direct browser adapter refuse before browser/login/request activity
 - Browser-backed X news sync path with authenticated following/timeline scraping, internal watchlist discovery, sync-run audit records, and Discord delivery suppression
 - Trusted captured Gmail JSON/MIME parsing with durable holds, normalized LinkedIn handoff with transactional versions, conservative posting-URL identity and durable thread/retry reconciliation
 - Allowlisted same-thread Discord review handoff with transactional cross-process replay admission and operator provenance; immutable Codex dispatch planning with real execution blocked pending isolation
@@ -95,7 +95,7 @@ openclaw skills list
 
 These `openclaw` commands assume `OPENCLAW_STATE_DIR` and `OPENCLAW_CONFIG_PATH` are already exported for this repo, as shown in [`docs/openclaw-setup.md`](/home/kevin/coding/openclaw/docs/openclaw-setup.md).
 
-For live Discord/Gmail work, replace the placeholder values in [`config/openclaw.example.json5`](/home/kevin/coding/openclaw/config/openclaw.example.json5). For direct Indeed sync, copy [`config/indeed-alerts.example.json`](/home/kevin/coding/openclaw/config/indeed-alerts.example.json) to `config/indeed-alerts.json`, replace the placeholder Discord target with the real feed channel, and keep the browser profile/timeouts unless you have a reason to tune them. The example alert also enables `auth.mode: "pass"` so the sync can recover from Indeed sign-in redirects by reading machine-local credentials from `pass`. For X news, copy [`config/twitter-news.example.json`](/home/kevin/coding/openclaw/config/twitter-news.example.json) to `config/twitter-news.json`, keep the seed handle as `Kev_Mok` unless you want a different graph root, and log into X once in the configured OpenClaw browser profile before the first sync.
+LinkedIn/Indeed alerts remain lead sources only. Automated job requests and Indeed search sync are disabled even if legacy alert configuration enables them. Keep real descriptions, candidate data and PDFs local. Real Discord PDF uploads are refused, including old queued work. X news remains a separate existing subsystem with its own configuration; PR1 does not change or exercise live accounts.
 
 ## LinkedIn Email To Discord Demo
 
@@ -119,13 +119,13 @@ For posting changes, operator holds, admission checks and fixture-journal recove
 
 Delivery validation uses the complete no-mistakes pipeline with native Codex selected explicitly for every role. The configuration owner establishes that selection; auto/mixed provider fallback is excluded. Validation keeps all steps enabled and escalates product decisions through Firstmate. See the runbook for the supported configuration boundary and delivery procedure; this does not authorize live job-flow model calls or sends.
 
-## How To Use
+## Day-to-day Usage
 
 The fixture-first workflow is:
 
 1. Replay the sample alert inbox into the canonical DB.
 2. Inspect the rebuilt shortlist and per-job review threads.
-3. Open a lead, review the chosen resume lane and draft packet.
+3. Open a held lead, capture its complete local description, then review eligibility and approved-evidence work. Legacy draft packets remain holds.
 4. Record approval, rejection, notes, resume changes, or manual-apply status.
 
 Replay and inspect:
@@ -152,15 +152,11 @@ pnpm resume:job -- --db data/fresh.sqlite --lead-id velocity-staffing-cloud-supp
 pnpm apply-status:job -- --db data/fresh.sqlite --lead-id maple-systems-junior-python-developer --status applied_manually
 ```
 
-Direct Indeed sync:
+Local full-description capture:
 
-```bash
-cp config/indeed-alerts.example.json config/indeed-alerts.json
-pnpm indeed:auth:set -- --config config/indeed-alerts.json --alert-id call-centre-canada-remote --username you@example.com
-pnpm sync:indeed -- --db data/job-ops.sqlite --config config/indeed-alerts.json --alert-id call-centre-canada-remote
-```
+Use `node dist/src/cli.js description-template --db PRIVATE_DB --lead-id HELD_JOB_ID --output PRIVATE_JSON` to create a prefilled review file. Paste the entire description into `body`, retain the canonical identity/source URL, add any exact requirement quotes to `requirements`, review `capturedAt`, and explicitly set `fullDescriptionConfirmed` to true. Capture with `description-capture --db PRIVATE_DB --input PRIVATE_JSON`; inspect metadata using `description-state --db PRIVATE_DB --lead-id HELD_JOB_ID`. Files stay local; do not attach real inputs to Discord. Run the existing eligibility and approved-evidence `linkedin-work` commands only after acceptance. See the [review runbook](docs/linkedin-workflow.md#local-full-description-review-pr1).
 
-The sync uses OpenClaw browser automation with a persistent browser profile and browser-managed cookies/storage. Before it opens or waits on any page, it checks `openclaw status --json` and fails fast with a gateway/browser-state error if the local runtime is unhealthy. If Indeed redirects the run to sign-in, the fetcher reuses the saved browser session first and then falls back to the configured `pass` entries when it needs to re-authenticate. If Indeed still returns a Cloudflare interstitial instead of usable job HTML, the sync fails loudly and records the blocked run in SQLite instead of treating it as an empty result set.
+`source-gate --db PRIVATE_DB` shows persisted defaults: global/source killed and budgets zero. `--source global|linkedin|indeed --killed true|false` changes only local product state. Turning kills off never changes LinkedIn/Indeed budget zero. `sync-indeed` refuses before constructing a fetcher or opening a browser. No automated login is permitted.
 
 Direct X news sync:
 
@@ -203,7 +199,7 @@ pnpm watchlist:x-news -- --config config/twitter-news.json --list ai-alpha
 
 ## Status
 
-- Implemented locally: normalized LinkedIn email → durable initial thread → explained fit → private approved-claim PDF → hash-bound fixture attachment, versioned eligibility and resume work, fixture replay, normalization, dedupe, location policy, resume routing, draft packets, DB state, Discord review projection, browser-backed Indeed sync, browser-backed X news sync with internal watchlist discovery, and tests.
+- Implemented locally: normalized LinkedIn email → durable initial thread → explained fit → private approved-claim PDF → hash-bound fixture attachment, versioned eligibility and resume work, fixture replay, normalization, dedupe, location policy, resume routing, completeness holds, immutable local description versions, DB state, Discord review projection, disabled Indeed sync, browser-backed X news sync with internal watchlist discovery, and tests.
 - Not live-tested: the new Discord REST adapter and trusted email handoff. Live Gmail watch/history and automatic sender/signature verification, unsupported alert layouts, and actual Codex execution remain gaps. Captured MIME/labeled HTML, local review and safe planning are implemented.
-- Scaffolded but not live-tested end-to-end: Discord bot connectivity, Gmail Pub/Sub watch delivery, live gateway run with external model/provider secrets, and successful Indeed fetches beyond Cloudflare interstitial handling.
-- Deferred intentionally: auto-apply flows, full browser automation for all leads before first-pass filtering, multi-tenant abstractions.
+- Scaffolded but not live-tested end-to-end: Discord bot connectivity, Gmail Pub/Sub watch delivery, live gateway run with external model/provider secrets, and live external acceptance. LinkedIn/Indeed page capture and login are excluded.
+- Deferred intentionally: auto-apply flows, employer ATS adapters/broker and matching/requirement-map work in later PRs, multi-tenant abstractions.

@@ -3,3 +3,6 @@ dist/
 coverage/
 data/
 .openclaw-dev/
+
+# Local night decision / private operational note
+/NIGHT_NOTE.md

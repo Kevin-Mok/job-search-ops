@@ -2,6 +2,17 @@
 
 Use the local synthetic demo to check replay, per-job review threads, private resume pages and exact fixture attachments. Keep all output together, inspect the rendered pages, and repeat intake after restart before attempting any separately authorized live test.
 
+## PR1 full descriptions and source controls
+
+- Action: Use the built CLI `description-template` for an existing held canonical job and inspect the local JSON; attempt capture before confirmation. Paste synthetic missing/truncated/login/challenge/expired/unknown content, confirm, and capture each.
+  Expected: Identity/source URL are prefilled; no overwrite. Unconfirmed capture refuses. Holds are partial/needs_login/blocked/expired/layout_unknown with actionable reasons; explicit confirmation cannot override detected walls, truncation, cutoff or unknown layout. No resume output.
+- Action: Run `scripts/job-description-demo.mjs` prepare with a fresh private output directory and pinned read-only renderer assets; inspect exact PNG. Run verify with explicit visual approval, then state in a fresh process.
+  Expected: A confirmed complete immutable version feeds fit and a readable one-page synthetic PDF. Fixture attachment preserves its exact hash. A second version creates distinct work; historical replay cannot restore old current state. Stale planning/attachment fail; later partial capture holds all preparation. History, previous prepared bytes/PDFs and receipts are preserved.
+- Action: Inspect source-gate, clear global and Indeed kills, inspect again after restart, then invoke sync-indeed with a valid existing alert config. Exercise direct adapter and injected search/detail/browser/credential spies in the source-gate regression.
+  Expected: Kills persist/reload; LinkedIn/Indeed budgets remain zero and counters remain zero. Sync refuses before fetcher construction/browser launch/login/request. Restore local kills to true after the test.
+- Action: Attempt real-transport attachment for historical queued synthetic work, and invoke real transport directly with synthetic bytes, using failing network spies. Exercise local fixture synthetic attachment/replay separately.
+  Expected: Real workflow refuses before loading resume bytes; real transport makes zero requests. Fixture keeps exact local bytes and receipt. No live Discord/Gmail/model calls, real descriptions/PDF uploads, source adapter or account activity.
+
 ## LinkedIn intake and recovery
 
 - Action: Build with `pnpm build`, then run `node scripts/linkedin-demo.mjs --output-dir data/linkedin-demo --phase intake` twice in separate processes.
@@ -12,7 +23,7 @@ Use the local synthetic demo to check replay, per-job review threads, private re
   Expected: Retry time is honored; uncertainty survives readback throttling. No second POST is attempted without conclusive readback. Corrected location holds can resume; explicit rejection stops pending sends, expired-send recovery and thread creation after asynchronous readback while preserving known receipts.
 - Action: Reject a job while its initial root/thread readback awaits, then explicitly reapprove it and drain the same target after restart. Repeat with a definite thread retry and an uncertain thread attempt; compare against real root/thread permission blocks across a queued operator hold.
   Expected: Local denials become recoverable holds. The same root is reused without another alert POST; retry timing survives and uncertain threads require matching readback. Genuine transport blocks remain terminal across rejection/reapproval, while returned receipts stay preserved.
-- Action: Exercise network, server and unreadable-JSON GET failures during initial thread lookup and fit/PDF preflight, then repeat after the recorded retry time. Contrast with an uncertain POST followed by a failed history read and with a permission block.
+- Action: Exercise network, server and unreadable-JSON GET failures during initial thread lookup and fit preflight (real PDF transport is disabled), then repeat after the recorded retry time. Contrast with an uncertain POST followed by a failed history read and with a permission block.
   Expected: GET failures before a new write retry without inventing uncertainty or resending known receipts. Existing POST uncertainty survives failed readback and requires matching receipts; permission blocks stay terminal.
 - Action: Use two fixture processes against the same private journal, exercising alert, thread, fit and attachment writes through `tests/linkedin-transport.test.ts`, then reopen the journal. Repeat an attachment key with different bytes.
   Expected: Every successful receipt remains readable after restart, original journal entries survive, and repeating an attachment preserves its first bytes. The adjacent private SQLite file serializes mutations without changing the journal format.
@@ -50,9 +61,9 @@ Use the local synthetic demo to check replay, per-job review threads, private re
   Expected: A new posting version awaits eligibility review. Prior prepared files and receipts remain historical; stale Codex planning and PDF attachment are denied.
 - Action: Open an existing database created before raw remote-eligibility storage, then ingest a new observation with that field.
   Expected: The nullable column is added without changing existing candidate, audit or delivery records; missing historical text stays unknown and new exact parsed text survives restart. Location classification remains unchanged.
-- Action: Use the admission regressions to revoke a queued job while another delivery awaits, change admission during fit send/readback or rendering, and revoke admission during the real transport's thread lookup before fit/PDF POST.
+- Action: Use the admission regressions to revoke a queued job while another delivery awaits, change admission during fit send/readback or rendering, and revoke admission during the real transport's thread lookup before fit POST; separately attempt a real PDF upload.
   Expected: No enrichment for the revoked queued job, no subsequent prepared file or artifact publication after revocation, and zero new POSTs after failed current admission. Any receipt already returned and all existing prepared inputs remain preserved.
-- Action: Revoke eligibility during thread lookup before a fit/PDF POST, inspect the prior absent/definite-retry record, then explicitly restore eligibility for the unchanged posting and repeat the same command. Contrast with an actual transport HTTP403 and an uncertain remote attempt.
+- Action: Revoke eligibility during thread lookup before a fit POST (real PDF uploads always refuse), inspect the prior absent/definite-retry record, then explicitly restore eligibility for the unchanged posting and repeat the same command. Contrast with an actual transport HTTP403 and an uncertain remote attempt.
   Expected: Local pre-POST denial preserves the prior record exactly and resumes once after reapproval. HTTP403 remains terminal; uncertainty still requires readback. Prepared inputs, existing receipts and completed deliveries are unchanged; issued remote requests are not promised cancellation.
 - Action: Prepare and render a synthetic canonical profile using both LinkedIn/GitHub contact fields with scheme-less labels and HTTPS URLs; repeat with explicit HTTP, FTP or other non-HTTPS schemes.
   Expected: Valid labels retain their display text and resolve to HTTPS targets, including uppercase HTTPS schemes. Explicit non-HTTPS schemes are rejected before emitting a broken resume contact link.

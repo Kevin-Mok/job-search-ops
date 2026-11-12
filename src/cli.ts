@@ -61,6 +61,10 @@ function readCommonArgs(argv: string[]) {
       "work-id": { type: "string" },
       sha256: { type: "string" },
       "approve-visual": { type: "boolean" },
+      input: { type: "string" },
+      output: { type: "string" },
+      source: { type: "string" },
+      killed: { type: "string" },
       plain: { type: "boolean" }
     },
     allowPositionals: true
@@ -222,6 +226,10 @@ async function main(): Promise<void> {
       "gmail-intake": "--db PATH --email-file CAPTURE_JSON --trusted-context VERIFIED_CONTEXT_JSON --verified-handoff --transport fixture --journal PRIVATE_JSON; parsed or durable held result",
       "discord-review": "--db PATH --interaction-file CAPTURE_JSON --review-config ALLOWLIST_JSON --verified-handoff; no outgoing send",
       "codex-resume-plan": "--db PATH --work-id ID --private-dir DIR; writes immutable private plan, actual CLI execution blocked",
+      "description-template": "--db PATH --lead-id ID --output PRIVATE_JSON; creates prefilled local paste review file, never overwrites",
+      "description-capture": "--db PATH --input PRIVATE_JSON; explicit fullDescriptionConfirmed required; immutable versions and holds",
+      "description-state": "--db PATH --lead-id ID; history metadata (body remains local)",
+      "source-gate": "--db PATH [--source global|linkedin|indeed --killed true|false]; kills persist; LinkedIn/Indeed budgets stay zero",
       "linkedin-intake": "--db PATH --email-file JSON --fixture --transport fixture --journal PRIVATE_JSON (or trusted --verified-handoff with an explicitly authorized discord destination)",
       "linkedin-deliver": "--db PATH --transport fixture --journal PRIVATE_JSON; retries durable initial delivery only",
       "linkedin-state": "--db PATH; lists messages, initial deliveries and versioned work",
@@ -278,6 +286,37 @@ async function main(): Promise<void> {
       const transport = linkedInTransport(parsed.values);
       print(await withProgress("Reconciling LinkedIn deliveries", parsed.values, () => drainLinkedInAlerts({ store, transport })));
       queueLinkedInWork(store, transport.target);
+      return;
+    }
+    case "description-template": {
+      const lead = requireLead(store, getLeadId(parsed.values));
+      const file = path.resolve(requiredArg(parsed.values, "output"));
+      fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+      fs.writeFileSync(file, JSON.stringify(store.descriptions.template(lead.leadId), null, 2) + "\n", { flag: "wx", mode: 0o600 });
+      print({ status: "held_for_local_paste", localPath: file, instruction: "Paste the entire employer description, review identity/requirements, then set fullDescriptionConfirmed to true. Known blockers remain holds." });
+      return;
+    }
+    case "description-capture": {
+      const file = path.resolve(requiredArg(parsed.values, "input"));
+      const stat = fs.lstatSync(file);
+      if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 256 * 1024) throw new Error("Description input must be a bounded local regular JSON file (max 256 KiB); no byte truncation is performed.");
+      const row = store.descriptions.capture(readPrivateJson(file) as import("./db/job-description-store.js").ManualDescriptionInput);
+      const { body: _body, requirements: _requirements, ...metadata } = row;
+      print(metadata);
+      return;
+    }
+    case "description-state": {
+      const lead = requireLead(store, getLeadId(parsed.values));
+      print({ currentVersion: store.descriptions.current(lead.leadId)?.versionId, versions: store.descriptions.history(lead.leadId).map(({ body: _body, requirements: _requirements, ...metadata }) => metadata) });
+      return;
+    }
+    case "source-gate": {
+      if (parsed.values.source || parsed.values.killed) {
+        const killed = requiredArg(parsed.values, "killed");
+        if (!["true", "false"].includes(killed)) throw new Error("--killed must be true or false.");
+        store.sources.setKill(requiredArg(parsed.values, "source"), killed === "true");
+      }
+      print(store.sources.state());
       return;
     }
     case "linkedin-state": {
@@ -374,7 +413,8 @@ async function main(): Promise<void> {
     }
     case "draft-packet": {
       const lead = requireLead(store, getLeadId(parsed.values));
-      print(lead.draftPacket);
+      store.descriptions.accepted(lead.leadId);
+      print({ status: "held", reason: "Use the approved-evidence linkedin-work workflow; legacy draft packets do not establish approved candidate claims." });
       return;
     }
     case "sync-indeed": {

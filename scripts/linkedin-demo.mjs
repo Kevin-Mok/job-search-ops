@@ -75,6 +75,15 @@ try {
   if (!fs.existsSync(evidenceFile)) privateJson("approved-evidence.json", evidence);
   privateJson("synthetic-demo.json", inputMarker);
   process.stderr.write(`${badge}LinkedIn offline fixture workflow | ${values.phase} | ${inputKind} inputs\n`);
+  function confirmSyntheticDescription(leadId) {
+    const file = path.join(directory, `synthetic-description-${leadId}.json`);
+    if (!fs.existsSync(file)) {
+      run("description-template", [...common, "--lead-id", leadId, "--output", file]);
+      const template = JSON.parse(fs.readFileSync(file, "utf8"));
+      fs.writeFileSync(file, JSON.stringify({ ...template, fullDescriptionConfirmed: true, body: "About the role: maintain synthetic validation systems. Responsibilities: write tests, review changes and document engineering behavior. Requirements: experience with Python and TypeScript. Benefits: flexible hours. Apply through the employer portal." }), { mode: 0o600 });
+    }
+    run("description-capture", [...common, "--input", file]);
+  }
   if (values.phase === "connections") {
     const email = JSON.parse(fs.readFileSync(fixture, "utf8"));
     const capture = { id: "synthetic-gmail-demo", internalDate: String(Date.parse(email.receivedAt)), payload: { mimeType: "text/plain", headers: [{ name: "From", value: email.from }, { name: "Subject", value: email.subject }], body: { data: Buffer.from(email.textBody).toString("base64url") } } };
@@ -82,6 +91,7 @@ try {
     const intake = run("gmail-intake", [...common, ...transport, "--verified-handoff", "--email-file", privateJson("gmail-capture.json", capture), "--trusted-context", privateJson("gmail-context.json", context)]);
     for (const work of intake.work) {
       const lead = run("show-lead", [...common, "--lead-id", work.leadId]);
+      confirmSyntheticDescription(work.leadId);
       if (lead.locationDecision === "accepted") run("linkedin-eligibility", [...common, "--lead-id", work.leadId, "--status", "eligible", "--note", "Offline operator approved this synthetic fixture posting; real-job authorization is not established."]);
     }
     const work = run("linkedin-work", [...common, ...transport, "--candidate", candidateFile, "--evidence", evidenceFile, "--private-dir", path.join(directory, "private")]);
@@ -100,10 +110,11 @@ try {
     const state = run("linkedin-state", common);
     for (const work of state.work) {
       const lead = run("show-lead", [...common, "--lead-id", work.leadId]);
+      confirmSyntheticDescription(work.leadId);
       if (lead.locationDecision === "accepted") run("linkedin-eligibility", [...common, "--lead-id", work.leadId, "--status", "eligible", "--note", "Offline operator approved this synthetic fixture posting; real-job authorization is not established."]);
     }
     const work = run("linkedin-work", [...common, ...transport, "--candidate", candidateFile, "--evidence", evidenceFile, "--private-dir", path.join(directory, "private"), "--render", "--portfolio-root", path.resolve(values["portfolio-root"])]);
-    process.stdout.write(JSON.stringify({ phase: "prepare", work: work.map(row => ({ workId: row.workId, leadId: row.leadId, eligibility: row.eligibility, status: row.status, codexStatus: row.codexStatus, tailoringMode: row.tailoringMode, fit: row.fit?.score, sha256: row.artifact?.sha256, previewPath: row.artifact?.previewPath, error: row.lastError })) }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ phase: "prepare", work: work.filter(row => row.descriptionVersion).map(row => ({ workId: row.workId, leadId: row.leadId, eligibility: row.eligibility, status: row.status, codexStatus: row.codexStatus, tailoringMode: row.tailoringMode, fit: row.fit?.score, sha256: row.artifact?.sha256, previewPath: row.artifact?.previewPath, error: row.lastError })) }, null, 2) + "\n");
   } else if (values.phase === "attach") {
     if (!values["approve-visual"] || !values["portfolio-root"]) throw new Error("Inspect every pending PNG, then pass --approve-visual and --portfolio-root.");
     const state = run("linkedin-state", common);
