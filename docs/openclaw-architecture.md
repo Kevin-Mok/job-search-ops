@@ -5,11 +5,11 @@ This document describes the shared ingestion, policy and canonical-state layers.
 ## Component Layout
 
 - [`src/core/`](/home/kevin/coding/openclaw/src/core)
-  - Parses raw alert fixtures and browser-extracted Indeed HTML
+  - Parses raw alert fixtures; the retained Indeed HTML parser has offline coverage only
   - Parses rendered X/Twitter following and timeline HTML
   - Evaluates location policy for `M1E 4V4`
   - Infers job family, risk flags, and resume lane
-  - Generates draft packets without inventing experience
+  - Returns holds for legacy draft packets; approved-evidence preparation follows the [LinkedIn workflow](linkedin-workflow.md#local-full-description-review-pr1)
 - [`src/db/store.ts`](/home/kevin/coding/openclaw/src/db/store.ts)
   - SQLite-backed canonical state
   - Stores job leads, ingest events, review events, sync runs, and Discord deliveries
@@ -23,7 +23,7 @@ This document describes the shared ingestion, policy and canonical-state layers.
 
 ## End-To-End Flow
 
-1. Fixture replay, trusted captured Gmail intake, browser-backed Indeed sync, browser-backed X/Twitter news sync, or future live Gmail Pub/Sub produces inbound content. The [LinkedIn workflow](linkedin-workflow.md) defines the captured-email trust contract.
+1. Fixture replay and trusted captured Gmail intake produce job alerts. X/Twitter news sync is a separate subsystem; live Gmail Pub/Sub remains future work. The [LinkedIn workflow](linkedin-workflow.md) defines the captured-email trust contract.
 2. The parser converts provider-specific alert content into structured lead candidates.
 3. The policy layer evaluates:
    - remote Canada eligibility
@@ -31,7 +31,7 @@ This document describes the shared ingestion, policy and canonical-state layers.
    - vague location fallback to `needs_review`
    - risk flags for U.S.-only remote, staffing spam, seniority mismatch, and suspicious language
 4. The routing layer picks the best existing resume variant from the allowed list.
-5. The drafting layer generates a packet constrained to supported resume evidence.
+5. Legacy drafting returns a hold; full-description acceptance gates approved-evidence work as defined in the [review runbook](linkedin-workflow.md#local-full-description-review-pr1).
 6. SQLite stores the canonical lead plus ingest and review events.
 7. Discord feed/thread state is rebuilt from SQLite, not from chat memory.
 8. Final application submission remains manual.
@@ -40,13 +40,17 @@ This document describes the shared ingestion, policy and canonical-state layers.
 
 - `job_leads`
   - Canonical record per duplicate key
-  - Includes score, policy outcome, resume match, and draft packet
+  - Includes score, policy outcome, resume match, and historical draft fields; reads project a held draft packet
 - `ingest_events`
   - Preserves each source alert that touched a lead
 - `review_events`
   - Preserves approval, rejection, notes, and apply-status changes
+- `job_description_versions` / `job_description_current`
+  - Immutable capture ledger and current pointer; see the [acceptance contract](linkedin-workflow.md#local-full-description-review-pr1)
+- `job_source_controls`
+  - Persists task-domain kill switches
 - `sync_runs`
-  - Preserves direct Indeed sync attempts, counts, and failure reasons
+  - Retains historical Indeed sync attempts; current source-gate refusals occur before a sync run is recorded
 - `discord_deliveries`
   - Preserves which candidate leads were already announced into each Discord target
 - `x_news_tracked_accounts`

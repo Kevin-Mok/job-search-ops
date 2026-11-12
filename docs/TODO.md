@@ -23,7 +23,7 @@ This file is the handoff and continuation checklist for the OpenClaw job-ops POC
   - [`fixtures/email/`](/home/kevin/coding/openclaw/fixtures/email)
 - [x] Location policy, risk checks, and scoring implemented
   - [`src/core/policy.ts`](/home/kevin/coding/openclaw/src/core/policy.ts)
-- [x] Resume routing and draft packet generation implemented
+- [x] Resume routing implemented; legacy draft generation now returns holds
   - [`src/core/resume-catalog.ts`](/home/kevin/coding/openclaw/src/core/resume-catalog.ts)
   - [`src/core/routing.ts`](/home/kevin/coding/openclaw/src/core/routing.ts)
   - [`src/core/drafting.ts`](/home/kevin/coding/openclaw/src/core/drafting.ts)
@@ -33,11 +33,7 @@ This file is the handoff and continuation checklist for the OpenClaw job-ops POC
   - [`src/discord/review-plan.ts`](/home/kevin/coding/openclaw/src/discord/review-plan.ts)
 - [x] Repo CLI added for deterministic review actions
   - [`src/cli.ts`](/home/kevin/coding/openclaw/src/cli.ts)
-- [x] Browser-backed Indeed sync added with blocked-page detection and Discord feed delivery audit
-  - [`src/core/indeed.ts`](/home/kevin/coding/openclaw/src/core/indeed.ts)
-  - [`src/core/indeed-sync.ts`](/home/kevin/coding/openclaw/src/core/indeed-sync.ts)
-  - [`src/core/openclaw-browser.ts`](/home/kevin/coding/openclaw/src/core/openclaw-browser.ts)
-  - [`config/indeed-alerts.example.json`](/home/kevin/coding/openclaw/config/indeed-alerts.example.json)
+- [x] Job-description and source-control boundaries: see the [PR1 plan](../plans/job-description-pr1.md) and [review runbook](linkedin-workflow.md#local-full-description-review-pr1)
 - [x] Browser-backed X/Twitter AI news sync added with internal watchlist discovery and Discord delivery audit
   - [`src/core/x-news.ts`](/home/kevin/coding/openclaw/src/core/x-news.ts)
   - [`src/core/x-news-sync.ts`](/home/kevin/coding/openclaw/src/core/x-news-sync.ts)
@@ -103,10 +99,7 @@ this into an exact OpenClaw config recommendation for both model and memorySearc
 
 ## Continue Next
 
-- [ ] High priority: run the live Indeed auth smoke test after seeding `pass` entries
-  - `pnpm indeed:auth:set -- --config config/indeed-alerts.json --alert-id call-centre-canada-remote --username <your-email>`
-  - `pnpm sync:indeed -- --db /tmp/indeed-smoke.sqlite --config config/indeed-alerts.json --alert-id call-centre-canada-remote`
-  - Verify the latest `sync_runs` row shows `pages_fetched > 0` and `cards_seen > 0`
+- [ ] Review the PR1 paste flow and source defaults using the [review runbook](linkedin-workflow.md#local-full-description-review-pr1)
 - [ ] Wire real Discord posting from the DB-backed review projection
   - Start from [`src/discord/review-plan.ts`](/home/kevin/coding/openclaw/src/discord/review-plan.ts)
   - Keep Discord as a projection of DB state, not the source of truth
@@ -117,9 +110,7 @@ this into an exact OpenClaw config recommendation for both model and memorySearc
   - Current config already reserves `hooks.transformsDir`
 - [ ] Decide whether to keep CLI-driven mutations or promote them into a minimal OpenClaw plugin
   - Do this only if structured runtime DB access becomes necessary
-- [ ] Add richer post-survival fetch/enrichment for shortlisted leads only
-  - Avoid browsing/fetching for obvious rejects
-  - Revisit the Indeed browser session strategy if live runs keep hitting Cloudflare interstitials
+- [ ] Later employer enrichment: follow the deferred scope in the [PR1 plan](../plans/job-description-pr1.md#scope-and-decisions)
 - [ ] Improve X news discovery heuristics after real usage
   - Tune topic keywords and preferred handles in [`config/twitter-news.example.json`](/home/kevin/coding/openclaw/config/twitter-news.example.json)
   - Revisit the score threshold once live X engagement patterns are known
@@ -132,7 +123,7 @@ this into an exact OpenClaw config recommendation for both model and memorySearc
 - [ ] Auto-submitting applications
 - [ ] Reimplementing Discord outside OpenClaw
 - [ ] Multi-tenant abstractions
-- [ ] Full browser automation for all leads before first-pass filtering
+- [ ] Employer ATS expansion beyond PR1; LinkedIn/Indeed automation is excluded, as defined in the [review runbook](linkedin-workflow.md#local-full-description-review-pr1)
 - [ ] Resume fact invention or unsupported claim generation
 
 ## Useful Entry Points

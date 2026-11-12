@@ -1,3 +1,4 @@
+import { confirmSyntheticDescriptions } from "./helpers/manual-description.js";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -17,6 +18,7 @@ async function fixture() {
   const email = JSON.parse(fs.readFileSync("fixtures/email/linkedin-alert-2026-03-12.json", "utf8"));
   const { leadIds } = ingestLinkedInEmail(store, { ...email, textBody: email.textBody.split("\n---\n")[0] }, { fixture: true });
   await drainLinkedInAlerts({ store, transport });
+    confirmSyntheticDescriptions(store);
   const lead = store.getLead(leadIds[0])!;
   store.work.decideEligibility({ leadId: lead.leadId, postingVersion: postingVersion(lead), eligibility: "eligible", reason: "Synthetic operator reviewed hard requirements." });
   const [work] = await processLinkedInWork({ store, transport, privateDir, candidate: { name: "Synthetic Candidate", email: "synthetic@example.test" }, evidence: [{ id: "approved", claim: "Built a synthetic demo.", source: "synthetic://approved", skills: [], approved: true }] });

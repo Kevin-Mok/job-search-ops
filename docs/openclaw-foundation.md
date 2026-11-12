@@ -27,8 +27,8 @@ The thinnest viable architecture for this repo is:
 
 1. Replay Gmail-like alert fixtures into the domain pipeline.
 2. Normalize leads and write canonical records to SQLite.
-3. Run location policy, dedupe, fit scoring, resume routing, and draft generation.
-4. Optionally poll a configured Indeed search URL and push newly prospective leads into a Discord feed channel.
+3. Run location policy, dedupe, fit scoring and resume routing.
+4. Follow the [description acceptance workflow](linkedin-workflow.md#local-full-description-review-pr1) before approved-evidence preparation; legacy drafting stays held.
 5. Optionally poll a configured X/Twitter news list, rank high-signal AI posts, and push the top items into a Discord feed channel.
 6. Derive Discord feed/thread state from DB records.
 7. Expose operator actions as OpenClaw workspace skills that call the repo CLI.
@@ -43,16 +43,15 @@ That keeps OpenClaw in its intended role:
 - Implemented now:
   - Fixture-driven ingest pipeline
   - Canonical SQLite DB
-  - Resume lane routing and draft packet generation
+  - Resume lane routing; see the [review runbook](linkedin-workflow.md#local-full-description-review-pr1) for description and drafting boundaries
   - Discord review-thread projection from DB state
-  - Browser-backed Indeed sync command with persistent session reuse, blocked-page detection, and Discord feed delivery audit
+  - Local description ledger and persisted source controls described in the [architecture](openclaw-architecture.md#data-model)
   - Browser-backed X/Twitter sync command with persistent session reuse, following-graph seeding, watchlist discovery, and Discord delivery audit
   - Project-managed OpenClaw workspace files and skills
 - Scaffolded but not live-tested:
   - Real Discord bot connectivity
   - Gmail Pub/Sub watch delivery into OpenClaw hooks
   - Live gateway sessions with external model/provider secrets
-  - Successful end-to-end Indeed page fetches beyond Cloudflare interstitial handling
 - Intentionally deferred:
   - Auto-applying on LinkedIn or Indeed
   - A custom OpenClaw plugin for DB access

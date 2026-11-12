@@ -105,6 +105,7 @@ export interface DraftPacket {
 }
 
 export interface JobLeadRecord {
+  descriptionVersion?: string;
   leadId: string;
   duplicateKey: string;
   source: LeadSource;

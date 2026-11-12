@@ -1,3 +1,4 @@
+import { confirmSyntheticDescriptions } from "./helpers/manual-description.js";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -10,7 +11,7 @@ import { createDiscordLinkedInTransport, type LinkedInTransport } from "../src/d
 
 type Stage = "thread" | "fit" | "pdf";
 type Fault = "network" | "500" | "503" | "json" | "403";
-const stages: Stage[] = ["thread", "fit", "pdf"];
+const stages: Stage[] = ["thread", "fit"];
 const transientFaults: Fault[] = ["network", "500", "503", "json"];
 const roots: string[] = [];
 const channelId = "222222222222222222";
@@ -51,6 +52,7 @@ async function setup(stage: Stage) {
     textBody: "Title: Support Engineer\nCompany: Example Employer\nLocation: Remote - Canada\nWork model: Remote\nRemote eligibility: Canada\nSeniority: Entry\nSkills: Python\nView Job: https://www.linkedin.com/jobs/view/123456789\nDescription: Maintain synthetic Python services."
   }, { fixture: true });
   if (stage !== "thread") await drainLinkedInAlerts({ store, transport: baseline });
+  confirmSyntheticDescriptions(store);
   const lead = store.getLead(leadId)!;
   store.work.decideEligibility({ leadId, postingVersion: postingVersion(lead), eligibility: "eligible", reason: "Synthetic requirements reviewed." });
   let [work] = queueLinkedInWork(store, baseline.target);

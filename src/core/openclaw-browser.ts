@@ -1,3 +1,4 @@
+import { assertSourceBudget } from "../db/source-gate-store.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
@@ -724,6 +725,7 @@ export function createOpenClawIndeedPageFetcher(params: {
   runCommand?: OpenClawCommandRunner;
   loadAuthCredentials?: () => Promise<IndeedAuthCredentials | undefined>;
 }): IndeedPageFetcher {
+  assertSourceBudget("indeed");
   const browserProfile = params.alert.browserProfile ?? `indeed-${params.alert.id}`;
   const pageTimeoutMs = params.alert.pageTimeoutMs ?? 30000;
   const challengeTimeoutMs = params.alert.challengeTimeoutMs ?? 20000;

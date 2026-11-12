@@ -1,3 +1,4 @@
+import { confirmSyntheticDescriptions } from "./helpers/manual-description.js";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
@@ -47,6 +48,7 @@ async function setup(count = 1) {
     ].join("\n")).join("\n---\n")
   }, { fixture: true });
   await drainLinkedInAlerts({ store, transport });
+    confirmSyntheticDescriptions(store);
   for (const lead of store.listLeads()) {
     store.work.decideEligibility({ leadId: lead.leadId, postingVersion: postingVersion(lead), eligibility: "eligible", reason: "Synthetic requirements reviewed." });
   }
@@ -102,7 +104,7 @@ async function deliverySetup(stage: "fit" | "pdf") {
 }
 
 describe("current admission across enrichment awaits", () => {
-  const denialCases = (["fit", "pdf"] as const).flatMap(stage => (["absent", "retry"] as const).map(prior => ({ stage, prior })));
+  const denialCases = (["fit"] as ("fit" | "pdf")[]).flatMap(stage => (["absent", "retry"] as const).map(prior => ({ stage, prior })));
   test.each(denialCases)("$stage pre-POST denial preserves $prior delivery and ordinary reapproval resumes once", async ({ stage, prior }) => {
     const { store, transport: originalTransport, privateDir, work, artifact } = await deliverySetup(stage);
     const field = stage === "fit" ? "fitDelivery" : "attachmentDelivery";
@@ -160,7 +162,7 @@ describe("current admission across enrichment awaits", () => {
     expect(new JobStore(store.dbPath).work.get(work.workId)![field]).toEqual(resumed[field]);
   });
 
-  test.each(["fit", "pdf"] as const)("real %s HTTP403 remains terminal after eligibility toggles", async stage => {
+  test.each(["fit"] as ("fit" | "pdf")[])("real %s HTTP403 remains terminal after eligibility toggles", async stage => {
     const { store, transport: originalTransport, privateDir, work, artifact } = await deliverySetup(stage);
     const field = stage === "fit" ? "fitDelivery" : "attachmentDelivery";
     let posts = 0;
@@ -348,6 +350,17 @@ describe("current admission across enrichment awaits", () => {
     } });
     if (stage === "fit") await processLinkedInWork({ store, transport, privateDir, candidate, evidence });
     else await attachLinkedInResume({ store, transport, workId: work.workId, approvedSha256: artifact!.sha256, portfolioRoot: privateDir }).catch(() => undefined);
+    if (stage === "pdf") {
+      expect(lookups).toBe(0);
+      expect(posts).toBe(0);
+      expect(resumeModule.validateJobResumeArtifact).not.toHaveBeenCalled();
+      const held = new JobStore(store.dbPath).work.get(work.workId)!;
+      expect(held.lastError).toMatch(/uploads are disabled/);
+      expect(held.attachmentDelivery).toBeUndefined();
+      expect(fs.readFileSync(work.preparedPath!)).toEqual(prepared);
+      expect(fs.readFileSync(work.codexHandoffPath!)).toEqual(handoff);
+      return;
+    }
     expect(lookups).toBe(1);
     expect(posts).toBe(change === "unchanged" ? 1 : 0);
     const persisted = new JobStore(store.dbPath).work.get(work.workId)!;

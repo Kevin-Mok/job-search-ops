@@ -1,5 +1,7 @@
 # Indeed Sync Discord ExecPlan
 
+Historical implementation record, superseded by the [PR1 source boundaries](../docs/linkedin-workflow.md#local-full-description-review-pr1). The goals and verification below describe the earlier implementation, not current operating instructions.
+
 ## Goal
 
 Implement a live Indeed alert sync path that polls configured search URLs, reuses the canonical SQLite ingest pipeline, and sends newly prospective leads into Discord on a repeatable schedule without making Discord the source of truth.

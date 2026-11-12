@@ -6,6 +6,7 @@ export interface LinkedInAlertPayload { key: string; content: string; title: str
 export interface ThreadMessageReceipt { messageId: string; attachmentId?: string }
 export interface LinkedInTransport {
   target: string;
+  attachmentPolicy?: "disabled";
   sendAlert(payload: LinkedInAlertPayload): Promise<string>;
   findAlert(key: string): Promise<string | undefined>;
   createThread(payload: { messageId: string; title: string }): Promise<string>;
@@ -77,6 +78,7 @@ export function createDiscordLinkedInTransport(params: {
   }
   return {
     target: `discord:${channelId}`,
+    attachmentPolicy: "disabled",
     async sendAlert(payload) {
       const receipt = record(await request(`/channels/${channelId}/messages`, {
         content: payload.content,
@@ -120,22 +122,8 @@ export function createDiscordLinkedInTransport(params: {
       }
       return { messageId: snowflake(match.id) };
     },
-    async sendAttachment({ threadId, key, filename, bytes, sha256, beforeSend }) {
-      if (bytes.length > 8 * 1024 * 1024) throw new DiscordRouteError("PDF exceeds the conservative 8 MiB upload cap.", "blocked");
-      await assertThread(threadId);
-      const form = new FormData();
-      form.append("payload_json", JSON.stringify({
-        content: `📄 Validated job resume — manual application only\nSHA-256: ${sha256}\njob-ops-key:${key}`,
-        nonce: key, enforce_nonce: true, allowed_mentions: { parse: [], users: [], roles: [], replied_user: false },
-        attachments: [{ id: 0, filename }], flags: 4
-      }));
-      form.append("files[0]", new Blob([new Uint8Array(bytes)], { type: "application/pdf" }), filename);
-      beforeSend?.();
-      const receipt = record(await request(`/channels/${snowflake(threadId)}/messages`, form));
-      if (receipt.channel_id !== threadId || !Array.isArray(receipt.attachments) || receipt.attachments.length !== 1) throw new DiscordRouteError("Discord PDF attachment receipt missing; do not claim delivery.", "uncertain");
-      const file = record(receipt.attachments[0]);
-      if (file.filename !== filename || file.size !== bytes.length) throw new DiscordRouteError("Discord PDF attachment receipt mismatch.", "uncertain");
-      return { messageId: snowflake(receipt.id), attachmentId: snowflake(file.id) };
+    async sendAttachment() {
+      throw new DiscordRouteError("Real resume PDF uploads are disabled for this rollout; keep the PDF local.", "blocked");
     },
     async findThread(messageId) {
       const receipt = await request(`/channels/${snowflake(messageId)}`, undefined, true);

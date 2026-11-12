@@ -65,8 +65,8 @@ describe("LinkedIn source refresh preserves operator decisions", () => {
     const refreshed = new JobStore(store.dbPath).getLead(leadId)!;
     expect(refreshed.resumeMatch).toEqual(selected.resumeMatch);
     expect(refreshed.draftPacket.chosenResume).toBe("sales");
-    expect(refreshed.draftPacket.tailoredSummary).toContain(`Maple Systems is hiring for ${title}. Use sales`);
-    expect(refreshed.draftPacket.rationale).toContain("Selected sales");
+    expect(refreshed.draftPacket.tailoredSummary).toBe("");
+    expect(refreshed.draftPacket.rationale).toContain("Description held");
     expect(store.listReviewEvents(leadId).filter(event => event.action === "resume_changed")).toHaveLength(1);
   });
 
@@ -89,8 +89,8 @@ describe("LinkedIn source refresh preserves operator decisions", () => {
     expect(refreshed.normalizedDescription).toBe(incoming.normalizedDescription);
     expect(refreshed.resumeMatch).toEqual(selected.resumeMatch);
     expect(refreshed.draftPacket.chosenResume).toBe("sales");
-    expect(refreshed.draftPacket.tailoredSummary).toContain("Use sales");
-    expect(refreshed.draftPacket.rationale).toContain("Selected sales");
+    expect(refreshed.draftPacket.tailoredSummary).toBe("");
+    expect(refreshed.draftPacket.rationale).toContain("Description held");
   });
 
   test.each(["rejected", "approved_for_manual_apply", "applied_manually"] as const)("refresh derives the draft from the final %s operator state", status => {
@@ -105,10 +105,8 @@ describe("LinkedIn source refresh preserves operator decisions", () => {
     }, { fixture: true });
     const refreshed = new JobStore(store.dbPath).getLead(leadId)!;
     expect(refreshed.reviewStatus).toBe(status);
-    expect(refreshed.draftPacket.recommendation).toBe(status === "rejected"
-      ? "Reject or archive. The role failed either location policy, fit scoring, or risk checks."
-      : "Shortlist for manual operator review in Discord. Final submission should remain manual in v1.");
-    expect(refreshed.draftPacket.tailoredSummary).toContain("Updated Employer is hiring");
+    expect(refreshed.draftPacket.recommendation).toContain("Hold for full-description review");
+    expect(refreshed.draftPacket.tailoredSummary).toBe("");
     expect(store.listReviewEvents(leadId)).toEqual(before);
   });
 });

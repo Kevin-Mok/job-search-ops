@@ -1,3 +1,4 @@
+import { confirmSyntheticDescriptions } from "./helpers/manual-description.js";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -40,6 +41,7 @@ describe("persisted remote eligibility source binding", () => {
     const { directory, store, transport } = setup();
     const first = ingestLinkedInEmail(store, observation(before, "first", "2026-11-10T10:00:00Z"), { fixture: true });
     await drainLinkedInAlerts({ store, transport });
+    confirmSyntheticDescriptions(store);
     const lead = store.getLead(first.leadIds[0])!;
     expect(lead.locationDecision).toBe("accepted");
     const version = postingVersion(lead);

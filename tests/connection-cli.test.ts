@@ -42,12 +42,17 @@ describe("captured connection CLI", () => {
     const review = { id: "synthetic-note", userId: "operator", target: root.target, channelId: "parent", threadId: root.threadId, rootMessageId: root.messageId, action: "note", note: "Synthetic operator reviewed this job." };
     const config = { expectedTarget: root.target, allowedUserIds: ["operator"], allowedChannelIds: ["parent"], allowedThreadIds: [root.threadId] };
     expect(cli("discord-review", ["--verified-handoff", "--interaction-file", jsonFile("interaction.json", review), "--review-config", jsonFile("review-config.json", config)]).ok).toBe(true);
+    const templatePath = path.join(dir, "description.json");
+    cli("description-template", ["--lead-id", root.leadId, "--output", templatePath]);
+    const template = JSON.parse(fs.readFileSync(templatePath, "utf8"));
+    fs.writeFileSync(templatePath, JSON.stringify({ ...template, fullDescriptionConfirmed: true, body: "About the role: maintain synthetic services. Responsibilities: write and review regression tests with the engineering team. Requirements: Python and TypeScript experience. Benefits: flexible hours. Apply via the employer portal." }));
+    cli("description-capture", ["--input", templatePath]);
     cli("linkedin-eligibility", ["--lead-id", root.leadId, "--status", "eligible", "--note", "Synthetic operator confirmed all requirements."]);
     const candidateFile = jsonFile("candidate.json", { name: "Synthetic Candidate", email: "synthetic@example.test" });
     const evidenceFile = jsonFile("evidence.json", [{ id: "synthetic-fact", claim: "Built **Python** validation fixtures.", skills: ["python"], source: "synthetic://approved/commit", approved: true }]);
     const privateDir = path.join(dir, "private");
     const work = cli("linkedin-work", ["--transport", "fixture", "--journal", journal, "--candidate", candidateFile, "--evidence", evidenceFile, "--private-dir", privateDir]);
-    const prepared = work.find((entry: { leadId: string }) => entry.leadId === root.leadId);
+    const prepared = work.find((entry: { leadId: string; descriptionVersion?: string }) => entry.leadId === root.leadId && entry.descriptionVersion);
     const plan = cli("codex-resume-plan", ["--work-id", prepared.workId, "--private-dir", privateDir]);
     expect(plan.execution).toBe("blocked_cli_isolation_unverified");
     expect(fs.existsSync(plan.planPath)).toBe(true);

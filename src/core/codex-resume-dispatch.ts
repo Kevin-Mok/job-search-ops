@@ -57,9 +57,12 @@ function readPrivateJson(file: string, directory: string): { value: Record<strin
 export function planCodexResumeDispatch(params: PlanParams): CodexResumeDispatchPlan {
   const work = params.store.work.get(params.workId);
   if (!work || work.workId !== params.workId || !/^[a-f0-9]{64}$/.test(work.workId)) throw new Error("Dispatch requires an exact current work ID.");
-  const lead = params.store.getLead(work.leadId);
+  const currentLead = params.store.getLead(work.leadId);
+  const description = params.store.descriptions.accepted(work.leadId);
+  if (work.descriptionVersion !== description.versionId) throw new Error("Description version changed; prepare current work.");
+  const lead = currentLead ? { ...currentLead, normalizedDescription: description.body } : undefined;
   const decision = params.store.work.decision(work.leadId, work.postingVersion);
-  if (!lead || postingVersion(lead) !== work.postingVersion) throw new Error("Posting changed; prepare and review its latest version.");
+  if (!lead || postingVersion(currentLead!) !== work.postingVersion) throw new Error("Posting changed; prepare and review its latest version.");
   if (work.eligibility !== "eligible" || decision?.eligibility !== "eligible" || lead.locationDecision !== "accepted" || ["rejected", "duplicate"].includes(lead.reviewStatus)) throw new Error("Current explicit eligibility approval is required for dispatch.");
   if (!work.threadId || !work.preparedPath || !work.codexHandoffPath || work.codexStatus !== "awaiting_authorized_dispatch" || !work.inputHash || !["prepared", "awaiting_visual_review"].includes(work.status)) throw new Error("Dispatch requires a prepared handoff bound to the current thread.");
   const root = fs.realpathSync(params.privateDir);

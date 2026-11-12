@@ -1,9 +1,12 @@
+import { generateDraftPacket } from "../core/drafting.js";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 
 import Database from "better-sqlite3";
 import { LinkedInStore } from "./linkedin-store.js";
+import { JobDescriptionStore } from "./job-description-store.js";
+import { SourceGateStore } from "./source-gate-store.js";
 import { JobWorkStore } from "./job-work-store.js";
 
 import type {
@@ -202,6 +205,8 @@ export class JobStore {
   private readonly db: Database.Database;
   readonly linkedin: LinkedInStore;
   readonly work: JobWorkStore;
+  readonly descriptions: JobDescriptionStore;
+  readonly sources: SourceGateStore;
 
   constructor(public readonly dbPath: string) {
     ensureDirectory(dbPath);
@@ -209,6 +214,8 @@ export class JobStore {
     this.initialize();
     this.linkedin = new LinkedInStore(this.db);
     this.work = new JobWorkStore(this.db);
+    this.descriptions = new JobDescriptionStore(this.db, id => this.getLead(id));
+    this.sources = new SourceGateStore(this.db);
   }
 
   private initialize(): void {
@@ -386,7 +393,7 @@ export class JobStore {
 
   findLeadByCanonicalUrl(url: string): JobLeadRecord | undefined {
     const row = this.db.prepare("SELECT * FROM job_leads WHERE canonical_url = ? ORDER BY created_at LIMIT 1").get(url) as SqlRow | undefined;
-    return row ? toLeadRecord(row) : undefined;
+    return row ? this.withDescription(toLeadRecord(row)) : undefined;
   }
 
   findLeadByDuplicateKey(duplicateKey: string): JobLeadRecord | undefined {
@@ -394,19 +401,23 @@ export class JobStore {
       .prepare("SELECT * FROM job_leads WHERE duplicate_key = ?")
       .get(duplicateKey) as SqlRow | undefined;
 
-    return row ? toLeadRecord(row) : undefined;
+    return row ? this.withDescription(toLeadRecord(row)) : undefined;
+  }
+
+  private withDescription(lead: JobLeadRecord): JobLeadRecord {
+    return { ...lead, draftPacket: generateDraftPacket(lead, lead.resumeMatch), descriptionVersion: this.descriptions.current(lead.leadId)?.versionId };
   }
 
   getLead(leadId: string): JobLeadRecord | undefined {
     const row = this.db.prepare("SELECT * FROM job_leads WHERE lead_id = ?").get(leadId) as SqlRow | undefined;
-    return row ? toLeadRecord(row) : undefined;
+    return row ? this.withDescription(toLeadRecord(row)) : undefined;
   }
 
   listLeads(): JobLeadRecord[] {
     const rows = this.db
       .prepare("SELECT * FROM job_leads ORDER BY score DESC, company ASC, title ASC")
       .all() as SqlRow[];
-    return rows.map((row) => toLeadRecord(row));
+    return rows.map((row) => this.withDescription(toLeadRecord(row)));
   }
 
   saveLead(lead: JobLeadRecord): void {

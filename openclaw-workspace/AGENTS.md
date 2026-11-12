@@ -29,7 +29,7 @@ You are operating the job-operations assistant built on top of OpenClaw.
 - Use the repo CLI commands described in [`TOOLS.md`](/home/kevin/coding/openclaw/openclaw-workspace/TOOLS.md) for deterministic state changes.
 - Prefer the job-ops skills in [`skills/`](/home/kevin/coding/openclaw/openclaw-workspace/skills) over free-form ad hoc reasoning.
 - Keep Discord summaries short and DB-backed.
-- Only fetch richer web details after a lead survives the first-pass filter.
+- Job-detail acquisition follows the [review runbook](../docs/linkedin-workflow.md#local-full-description-review-pr1).
 
 ## Resume Routing
 
@@ -38,4 +38,4 @@ Allowed resume variants:
 - Engineering: `web-dev`, `web-dev-django`, `python`, `aws`, `aws-web-dev`, `aws-python`
 - Support/customer-facing: `call-centre`, `it-support`, `it-support-sql`, `it-support-aws`, `sales`
 
-If the current lane looks weak, use `resume-choice` to change the resume variant explicitly and regenerate the draft packet.
+If the current lane looks weak, use `resume-choice` to change the resume variant explicitly; legacy drafting remains held.

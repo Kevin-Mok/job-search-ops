@@ -88,6 +88,7 @@ export async function syncIndeedAlert(params: {
   pageFetcher?: IndeedPageFetcher;
   sendDiscordMessage?: (payload: DiscordMessagePayload) => Promise<DiscordMessageResult>;
 }): Promise<AlertSyncSummary> {
+  params.store.sources.assertAutomated("indeed");
   if (!params.alert.enabled) {
     throw new Error(`Indeed alert is disabled: ${params.alert.id}`);
   }
