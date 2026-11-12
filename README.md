@@ -191,8 +191,6 @@ pnpm note:job -- --lead-id maple-systems-junior-python-developer --note "Manual 
 pnpm resume:job -- --lead-id maple-systems-junior-python-developer --resume aws-python
 pnpm apply-status:job -- --lead-id maple-systems-junior-python-developer --status applied_manually
 pnpm draft:packet -- --lead-id maple-systems-junior-python-developer
-pnpm indeed:auth:set -- --config config/indeed-alerts.json --alert-id call-centre-canada-remote --username you@example.com
-pnpm sync:indeed -- --config config/indeed-alerts.json --alert-id call-centre-canada-remote
 pnpm sync:x-news -- --config config/twitter-news.json --list ai-alpha
 pnpm brief:x-news -- --config config/twitter-news.json --list ai-alpha --hours 24
 pnpm watchlist:x-news -- --config config/twitter-news.json --list ai-alpha

@@ -58,6 +58,7 @@ Supervisor inbox004/005 follow-up: explicit private requirements-runtime-evidenc
 
 ### Documentation and lint phase
 
+- [x] Follow-up pass: remove obsolete Indeed credential/sync examples from README common commands; route the continuation prompt to the PR1 plan and current runbook addendum instead of parked Gmail-history work. Extend the existing smoke check for named whitespace blockers without changing the approved runbook bytes.
 - [x] Replace stale Indeed setup, login, recovery and scheduling instructions with pointers to the review runbook; mark earlier Indeed plans as historical. Correct foundation/architecture, TODO and workspace claims about legacy drafts and source intake.
 - [x] Clarify immutable historical decisions versus current acceptance in the owner runbook, and distinguish fixture PDF attachment from the disabled real upload path. Preserve optional quote input and approved fixture/test bytes.
 - [x] Static checks: Node v22.15.0; TypeScript `tsc --noEmit -p tsconfig.json`, `node --check` for both changed demo scripts, relative-link checks for changed Markdown and `git diff --check` all exited 0. No dedicated linter or formatter is configured. No tests, behavioral validation, configuration refresh, commit, push, PR or CI phase was run here.
