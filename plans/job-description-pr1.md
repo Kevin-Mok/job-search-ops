@@ -34,6 +34,12 @@ Conservative classifiers may hold valid prose; operator confirmation never overr
 - [x] Bound login and truncation prose markers at the shared classifier so capture and persisted-record rechecks use the same correction. Structural authentication indicators, challenge detection, confirmation, provenance and source gates remain unchanged. R2 optional quote input remains unchanged by author decision.
 - [x] Locked dependencies installed with `pnpm install --frozen-lockfile`; `pnpm exec node --version` reported v22.15.0. Intentional RED: 10 failed, 108 passed, including two confirmation checks blocked by the false positive. Focused GREEN: `pnpm exec node node_modules/vitest/vitest.mjs run tests/job-description-markers.test.ts` exited 0 with 118 passed. Genuine login, challenge, expiration and truncation holds remain covered. Full tests/lint, publication and CI belong to the outer executor and were not run in this review phase.
 
+### R3/R4 review correction
+
+- [x] Preserve immutable historical status/reason/provenance on reads; move current classification enforcement to acceptance, alongside stored acceptance and posting freshness. Current/history/lead reads, prefill and explicit recapture remain usable when classifier decisions change; no previously held version is silently promoted.
+- [x] Match login/challenge prose against normalized visible text, retaining word boundaries and raw password/authwall/URL/CAPTCHA/Cloudflare checks. No source-gate, quote-input, upload, privacy policy or approved fixture edits.
+- [x] Separate behavioral regressions reproduce both defects: intentional RED exited 1 with 45 failed and 24 passed. After both fixes and caller tracing, `pnpm exec node node_modules/vitest/vitest.mjs run tests/job-description-history.test.ts tests/job-description-normalization.test.ts tests/job-description-markers.test.ts` exited 0 with 187 passed across three files. Coverage includes persisted historical false positives, reopen/history/lead reads/prefill/recapture, immutable serialized records, stale and current acceptance holds, split text/HTML markers, raw structural markers and ordinary prose. Smoke instructions updated. No full suite/lint or other pipeline phase run.
+
 ## Current verification and milestone
 
 - Defining RED logs: red.log (missing new module), red-cli.log (missing executable proof), red-edge-classifier.log (hex-encoded ellipsis classified complete). The latter received entity decoding/document-cutoff/container-body checks; 7 focused cases now pass.

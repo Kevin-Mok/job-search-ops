@@ -26,8 +26,6 @@ export class JobDescriptionStore {
     const row = JSON.parse(json) as DescriptionVersion;
     const { versionId, ...content } = row;
     if (crypto.createHash('sha256').update(JSON.stringify(content)).digest('hex') !== versionId || row.provenance !== 'local_manual_paste') throw new Error('Corrupt description provenance; preserve the database and recapture locally.');
-    const decision = classifyDescription({ text: row.body, format: 'text', source: row.source, operatorConfirmed: row.fullDescriptionConfirmed, byteCutoff: row.byteCutoff });
-    if (decision.status !== row.status) throw new Error('Description classification changed; recapture for current review.');
     return row;
   }
   template(id: string): ManualDescriptionInput {
@@ -72,6 +70,8 @@ export class JobDescriptionStore {
     if (!row) throw new Error('Description held: alert text is lead/snippet only. Capture and confirm a full local description.');
     if (!lead || row.postingFingerprint !== fingerprint(lead)) throw new Error('Description stale: posting changed; recapture the current full description.');
     if (!['complete', 'complete_operator_confirmed'].includes(row.status)) throw new Error(`Description held: ${row.status}. ${row.reason}`);
+    const decision = classifyDescription({ text: row.body, format: 'text', source: row.source, operatorConfirmed: row.fullDescriptionConfirmed, byteCutoff: row.byteCutoff });
+    if (!['complete', 'complete_operator_confirmed'].includes(decision.status)) throw new Error(`Description held: ${decision.status}. ${decision.reason}`);
     return row;
   }
 }
