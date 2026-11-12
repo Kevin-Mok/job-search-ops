@@ -14,7 +14,7 @@ The POC is intentionally fixture-first. It can ingest replayable Indeed and Link
 | Vitest | Synthetic regression coverage for ingestion, recovery and operator actions |
 | Chrome / Poppler / portfolio CMU assets | Private job-specific PDF drafts using existing fonts, layout checks and exact-byte validation |
 
-The new [LinkedIn workflow](docs/linkedin-workflow.md) connects normalized email intake, stable threads, evidence-backed fit, prepared work for eligible jobs with accepted descriptions, and exact PDF attachment through a local fixture transport. Real mailbox/text-only Discord delivery remains a separate authorized test gate; PDF uploads are disabled.
+The [LinkedIn workflow](docs/linkedin-workflow.md), with its [current corrections](docs/linkedin-workflow-addendum.md), connects normalized email intake, stable threads, evidence-backed fit, prepared work for eligible jobs with accepted descriptions, and exact PDF attachment through a local fixture transport. Real mailbox/text-only Discord delivery remains a separate authorized test gate; PDF uploads are disabled. Read the addendum alongside the runbook: its corrections take precedence for description acceptance and delivery; the runbook retains its exact approved bytes.
 
 ## What Is Implemented
 
@@ -155,7 +155,7 @@ Local full-description capture:
 
 Legacy `draft:packet` refuses unaccepted descriptions and otherwise reports a hold; it does not generate application drafts.
 
-Use `node dist/src/cli.js description-template --db PRIVATE_DB --lead-id HELD_JOB_ID --output PRIVATE_JSON` to create a prefilled review file. Paste the entire description into `body`, retain the canonical identity/source URL, add any exact requirement quotes to `requirements`, review `capturedAt`, and explicitly set `fullDescriptionConfirmed` to true. Capture with `description-capture --db PRIVATE_DB --input PRIVATE_JSON`; inspect metadata using `description-state --db PRIVATE_DB --lead-id HELD_JOB_ID`. Files stay local; do not attach real inputs to Discord. Run the existing eligibility and approved-evidence `linkedin-work` commands only after acceptance. See the [review runbook](docs/linkedin-workflow.md#local-full-description-review-pr1).
+Use `node dist/src/cli.js description-template --db PRIVATE_DB --lead-id HELD_JOB_ID --output PRIVATE_JSON` to create a prefilled review file. Paste the entire description into `body`, retain the canonical identity/source URL, add any exact requirement quotes to `requirements`, review `capturedAt`, and explicitly set `fullDescriptionConfirmed` to true. Capture with `description-capture --db PRIVATE_DB --input PRIVATE_JSON`; inspect metadata using `description-state --db PRIVATE_DB --lead-id HELD_JOB_ID`. Files stay local; do not attach real inputs to Discord. Run the existing eligibility and approved-evidence `linkedin-work` commands only after acceptance. See the [review runbook](docs/linkedin-workflow.md#local-full-description-review-pr1) and [current acceptance rules](docs/linkedin-workflow-addendum.md#description-history-and-acceptance).
 
 `source-gate --db PRIVATE_DB` shows persisted defaults: global/source killed and budgets zero. `--source global|linkedin|indeed --killed true|false` changes only local product state. Turning kills off never changes LinkedIn/Indeed budget zero. `sync-indeed` refuses before constructing a fetcher or opening a browser. No automated login is permitted.
 

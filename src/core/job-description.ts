@@ -7,7 +7,7 @@ export function classifyDescription(input: { text: string; format: 'text' | 'htm
   const raw = input.text.replace(/&#(x[0-9a-f]+|[0-9]+);/gi, (whole, digits: string) => {
     const point = digits.toLowerCase().startsWith('x') ? parseInt(digits.slice(1), 16) : Number(digits);
     return point > 0 && point <= 0x10ffff ? String.fromCodePoint(point) : whole;
-  }).replace(/&quot;/gi, '"').replace(/&apos;/gi, "'").replace(/&hellip;/gi, '…');
+  }).replace(/&quot;/gi, '"').replace(/&apos;/gi, "'").replace(/&hellip;/gi, '…').replace(/&(?:nbsp|NonBreakingSpace|ensp|emsp(?:13|14)?|numsp|puncsp|thinsp|ThinSpace|hairsp|VeryThinSpace|MediumSpace|ThickSpace|Negative(?:VeryThin|Thin|Medium|Thick)Space|Tab|NewLine);/gi, ' ');
   const text = raw.replace(/<[^>]*>/g, ' ').replace(/&hellip;|&#8230;/gi, '…').replace(/\s+/g, ' ').trim();
   const result = (status: DescriptionStatus, reason: string) => ({ status, reason });
   if (/captcha|cloudflare/i.test(raw) || /\b(?:verify (?:that )?you are human|security challenge|access denied|unusual traffic)\b/i.test(text)) return result('blocked', 'Challenge/access block detected. Paste a verified employer description locally.');
