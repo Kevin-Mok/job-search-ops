@@ -6,6 +6,7 @@ import crypto from "node:crypto";
 import Database from "better-sqlite3";
 import { LinkedInStore } from "./linkedin-store.js";
 import { JobDescriptionStore } from "./job-description-store.js";
+import { DiscordRouteError } from "../discord/linkedin-transport.js";
 import { SourceGateStore } from "./source-gate-store.js";
 import { JobWorkStore } from "./job-work-store.js";
 
@@ -221,9 +222,13 @@ export class JobStore {
   assertLinkedInDelivery(leadId: string): void {
     const lead = this.getLead(leadId);
     if (lead?.sourceFixture !== 'private:linkedin_public') return;
-    if (this.deliveryConfig.linkedinPublicPdfDelivery !== true) throw new Error('Public handoff flag is disabled.');
-    this.sources.assertPublic();
-    this.descriptions.accepted(leadId);
+    try {
+      if (this.deliveryConfig.linkedinPublicPdfDelivery !== true) throw new Error('Public handoff flag is disabled.');
+      this.sources.assertPublic();
+      this.descriptions.accepted(leadId);
+    } catch (error) {
+      throw new DiscordRouteError(error instanceof Error ? error.message : 'Public handoff admission held.', 'retry');
+    }
   }
 
   private initialize(): void {

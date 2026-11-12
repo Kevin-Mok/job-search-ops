@@ -78,3 +78,9 @@ Final offline verification passed923tests across36files, zero skips, with a fres
 A subsequent synthetic counterfactual showed the initial public guard could mistake non-rendered script/style/meta/comment keywords for visible challenge text. Source-specific normalization now excludes only those non-rendered elements before public visible-text/body classification. Raw extracted description markup remains private provenance; PR1's classifier itself, layout/truncation checks, actual password/login/form/URL/status stops and structural challenge widgets remain in force. JSON-LD date fields are still parsed as metadata, never challenge text. Historical held versions retain their status and need an explicit new capture rather than automatic promotion.
 
 This is a proven synthetic defect and code correction, **not the diagnosed cause of the real200 response**: no saved response body identifies that trigger. The live ledger/cooldown was not changed and no live attempt followed the correction. Final regression evidence is recorded in the implementation plan.
+
+## Review recovery boundaries
+
+Public ingestion recognizes complete skill names: JavaScript alone does not declare Java, and punctuation in Node.js is literal. Search, URL capture and persisted replay share this extraction path before fit scoring.
+
+Initial alert/thread authorization refusals occur before the write and retain a retryable delivery with its existing key and any confirmed alert receipt. After admission is restored and the recorded backoff expires, draining the same database resumes delivery. Interrupted POSTs still require receipt readback; a missing bounded-history match never authorizes a duplicate write.

@@ -316,6 +316,6 @@ export function authorizePublicResumeDelivery(store: JobStore, input: { threadId
 
 export function authorizeLinkedInInitialDelivery(store: JobStore, input: { target: string; key?: string; messageId?: string }): void {
   const matches = store.linkedin.listDeliveries(input.target).filter(row => input.key ? row.key === input.key : input.messageId && row.messageId === input.messageId);
-  if (matches.length !== 1) throw new Error('Initial delivery requires one persisted posting/destination binding.');
+  if (matches.length !== 1) throw new DiscordRouteError('Initial delivery requires one persisted posting/destination binding.', 'retry');
   store.assertLinkedInDelivery(matches[0].leadId);
 }

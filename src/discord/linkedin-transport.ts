@@ -24,6 +24,11 @@ export class DiscordRouteError extends Error {
   }
 }
 
+function admitInitial(authorize: ((input: InitialLinkedInAuthorization) => void) | undefined, input: InitialLinkedInAuthorization): void {
+  try { authorize?.(input); }
+  catch (error) { throw new DiscordRouteError(error instanceof Error ? error.message : "Initial delivery admission held.", "retry"); }
+}
+
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new DiscordRouteError("Invalid Discord response; reconcile before retry.", "uncertain");
   return value as Record<string, unknown>;
@@ -84,7 +89,7 @@ export function createDiscordLinkedInTransport(params: {
     target: `discord:${channelId}`,
     attachmentPolicy: params.linkedinPublicPdfDelivery === true && params.authorizePublicPdf ? "linkedin_public" : "disabled",
     async sendAlert(payload) {
-      params.authorizeInitial?.({ target: `discord:${channelId}`, key: payload.key });
+      admitInitial(params.authorizeInitial, { target: `discord:${channelId}`, key: payload.key });
       const receipt = record(await request(`/channels/${channelId}/messages`, {
         content: payload.content,
         nonce: payload.key,
@@ -101,7 +106,7 @@ export function createDiscordLinkedInTransport(params: {
       return match ? snowflake(match.id) : undefined;
     },
     async createThread({ messageId, title }) {
-      params.authorizeInitial?.({ target: `discord:${channelId}`, messageId });
+      admitInitial(params.authorizeInitial, { target: `discord:${channelId}`, messageId });
       const receipt = record(await request(`/channels/${channelId}/messages/${snowflake(messageId)}/threads`, { name: title.slice(0, 100), auto_archive_duration: 1440 }));
       if (receipt.parent_id !== channelId || receipt.type !== 11) throw new DiscordRouteError("Unexpected Discord thread destination/type.", "uncertain");
       return snowflake(receipt.id);
@@ -189,7 +194,7 @@ export function createFixtureLinkedInTransport(journalPath: string, options: { a
   return {
     target: `fixture:${path.resolve(journalPath)}`,
     async sendAlert({ key, content }) {
-      options.authorizeInitial?.({ target: `fixture:${path.resolve(journalPath)}`, key });
+      admitInitial(options.authorizeInitial, { target: `fixture:${path.resolve(journalPath)}`, key });
       return mutate(journal => {
         journal.alerts[key] ??= { id: `fixture-message-${key}`, content };
         return journal.alerts[key].id;
@@ -197,7 +202,7 @@ export function createFixtureLinkedInTransport(journalPath: string, options: { a
     },
     async findAlert(key) { return read().alerts[key]?.id; },
     async createThread({ messageId, title }) {
-      options.authorizeInitial?.({ target: `fixture:${path.resolve(journalPath)}`, messageId });
+      admitInitial(options.authorizeInitial, { target: `fixture:${path.resolve(journalPath)}`, messageId });
       return mutate(journal => {
         journal.threads[messageId] ??= { id: `fixture-thread-${messageId}`, title };
         return journal.threads[messageId].id;
