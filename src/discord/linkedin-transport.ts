@@ -1,25 +1,32 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 
+export interface InitialLinkedInAuthorization { target: string; key?: string; messageId?: string }
 export interface LinkedInAlertPayload { key: string; content: string; title: string }
 export interface ThreadMessageReceipt { messageId: string; attachmentId?: string }
 export interface LinkedInTransport {
   target: string;
-  attachmentPolicy?: "disabled";
+  attachmentPolicy?: "disabled" | "linkedin_public";
   sendAlert(payload: LinkedInAlertPayload): Promise<string>;
   findAlert(key: string): Promise<string | undefined>;
   createThread(payload: { messageId: string; title: string }): Promise<string>;
   findThread(messageId: string): Promise<string | undefined>;
   sendThreadMessage?(payload: { threadId: string; key: string; content: string; beforeSend?: () => void }): Promise<string>;
   findThreadMessage?(threadId: string, key: string, attachment?: { filename: string; bytesLength: number }): Promise<ThreadMessageReceipt | undefined>;
-  sendAttachment?(payload: { threadId: string; key: string; filename: string; bytes: Buffer; sha256: string; beforeSend?: () => void }): Promise<ThreadMessageReceipt>;
+  sendAttachment?(payload: { threadId: string; key: string; filename: string; bytes: Buffer; sha256: string; publicDescriptionVersion?: string; beforeSend?: () => void }): Promise<ThreadMessageReceipt>;
 }
 
 export class DiscordRouteError extends Error {
   constructor(message: string, readonly certainty: "retry" | "blocked" | "uncertain", readonly retryAfterMs?: number) {
     super(message);
   }
+}
+
+function admitInitial(authorize: ((input: InitialLinkedInAuthorization) => void) | undefined, input: InitialLinkedInAuthorization): void {
+  try { authorize?.(input); }
+  catch (error) { throw new DiscordRouteError(error instanceof Error ? error.message : "Initial delivery admission held.", "retry"); }
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -32,7 +39,9 @@ function snowflake(value: unknown): string {
 }
 
 export function createDiscordLinkedInTransport(params: {
-  token: string; channelId: string; fetcher?: typeof fetch;
+  token: string; channelId: string; fetcher?: typeof fetch; linkedinPublicPdfDelivery?: boolean;
+  authorizeInitial?: (input: InitialLinkedInAuthorization) => void;
+  authorizePublicPdf?: (input: { threadId: string; sha256: string; descriptionVersion: string }) => void;
 }): LinkedInTransport {
   const channelId = snowflake(params.channelId);
   if (!params.token.trim()) throw new Error("Discord bot token is required through the local environment.");
@@ -78,8 +87,9 @@ export function createDiscordLinkedInTransport(params: {
   }
   return {
     target: `discord:${channelId}`,
-    attachmentPolicy: "disabled",
+    attachmentPolicy: params.linkedinPublicPdfDelivery === true && params.authorizePublicPdf ? "linkedin_public" : "disabled",
     async sendAlert(payload) {
+      admitInitial(params.authorizeInitial, { target: `discord:${channelId}`, key: payload.key });
       const receipt = record(await request(`/channels/${channelId}/messages`, {
         content: payload.content,
         nonce: payload.key,
@@ -96,6 +106,7 @@ export function createDiscordLinkedInTransport(params: {
       return match ? snowflake(match.id) : undefined;
     },
     async createThread({ messageId, title }) {
+      admitInitial(params.authorizeInitial, { target: `discord:${channelId}`, messageId });
       const receipt = record(await request(`/channels/${channelId}/messages/${snowflake(messageId)}/threads`, { name: title.slice(0, 100), auto_archive_duration: 1440 }));
       if (receipt.parent_id !== channelId || receipt.type !== 11) throw new DiscordRouteError("Unexpected Discord thread destination/type.", "uncertain");
       return snowflake(receipt.id);
@@ -122,8 +133,26 @@ export function createDiscordLinkedInTransport(params: {
       }
       return { messageId: snowflake(match.id) };
     },
-    async sendAttachment() {
-      throw new DiscordRouteError("Real resume PDF uploads are disabled for this rollout; keep the PDF local.", "blocked");
+    async sendAttachment(payload) {
+      if (params.linkedinPublicPdfDelivery !== true || !params.authorizePublicPdf) throw new DiscordRouteError("Real resume PDF uploads are disabled for this rollout; keep the PDF local.", "blocked");
+      const { threadId, key, filename, sha256, publicDescriptionVersion, beforeSend } = payload;
+      if (!publicDescriptionVersion || !beforeSend) throw new DiscordRouteError('Public PDF authorization and current source admission required.', 'blocked');
+      const authorize = () => { params.authorizePublicPdf!({ threadId, sha256, descriptionVersion: publicDescriptionVersion }); beforeSend(); };
+      authorize();
+      await assertThread(threadId);
+      authorize();
+      // Access bytes only after scope, source, current posting and destination checks.
+      const bytes = payload.bytes;
+      if (!Buffer.isBuffer(bytes) || crypto.createHash('sha256').update(bytes).digest('hex') !== sha256 || bytes.subarray(0,5).toString() !== '%PDF-' || bytes.length > 8 * 1024 * 1024 || !filename.endsWith('.pdf') || /[\/\\]/.test(filename)) throw new DiscordRouteError('Invalid bounded public PDF attachment.', 'blocked');
+      const form = new FormData();
+      form.set('payload_json', JSON.stringify({ content: `📎 Tailored résumé | job-ops-key:${key}\njob-ops-key:${key}`, nonce: key, enforce_nonce: true, attachments: [{ id: 0, filename }], allowed_mentions: { parse: [], users: [], roles: [], replied_user: false } }));
+      form.set('files[0]', new Blob([new Uint8Array(bytes)], { type: 'application/pdf' }), filename);
+      authorize();
+      const receipt = record(await request(`/channels/${snowflake(threadId)}/messages`, form));
+      if (receipt.channel_id !== threadId || !Array.isArray(receipt.attachments) || receipt.attachments.length !== 1) throw new DiscordRouteError('Public PDF receipt destination/attachment mismatch.', 'uncertain');
+      const attachment = record(receipt.attachments[0]);
+      if (attachment.filename !== filename || attachment.size !== bytes.length) throw new DiscordRouteError('Public PDF attachment receipt mismatch.', 'uncertain');
+      return { messageId: snowflake(receipt.id), attachmentId: snowflake(attachment.id) };
     },
     async findThread(messageId) {
       const receipt = await request(`/channels/${snowflake(messageId)}`, undefined, true);
@@ -136,7 +165,7 @@ export function createDiscordLinkedInTransport(params: {
 }
 
 interface FixtureJournal { entries?: Record<string, { messageId: string; threadId: string; content?: string; attachmentId?: string; filename?: string; bytesLength?: number; sha256?: string }>; version: 1; alerts: Record<string, { id: string; content: string }>; threads: Record<string, { id: string; title: string }> }
-export function createFixtureLinkedInTransport(journalPath: string): LinkedInTransport {
+export function createFixtureLinkedInTransport(journalPath: string, options: { authorizeInitial?: (input: InitialLinkedInAuthorization) => void } = {}): LinkedInTransport {
   function read(): FixtureJournal {
     if (!fs.existsSync(journalPath)) return { version: 1, alerts: {}, threads: {} };
     const journal = JSON.parse(fs.readFileSync(journalPath, "utf8")) as FixtureJournal;
@@ -165,6 +194,7 @@ export function createFixtureLinkedInTransport(journalPath: string): LinkedInTra
   return {
     target: `fixture:${path.resolve(journalPath)}`,
     async sendAlert({ key, content }) {
+      admitInitial(options.authorizeInitial, { target: `fixture:${path.resolve(journalPath)}`, key });
       return mutate(journal => {
         journal.alerts[key] ??= { id: `fixture-message-${key}`, content };
         return journal.alerts[key].id;
@@ -172,6 +202,7 @@ export function createFixtureLinkedInTransport(journalPath: string): LinkedInTra
     },
     async findAlert(key) { return read().alerts[key]?.id; },
     async createThread({ messageId, title }) {
+      admitInitial(options.authorizeInitial, { target: `fixture:${path.resolve(journalPath)}`, messageId });
       return mutate(journal => {
         journal.threads[messageId] ??= { id: `fixture-thread-${messageId}`, title };
         return journal.threads[messageId].id;

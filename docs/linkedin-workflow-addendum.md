@@ -13,11 +13,19 @@ The classifier normalizes named HTML spacing entities before checking visible lo
 The runbook overview and implementation table should be read with these conditions:
 
 - Tailoring requires an eligible job **and an accepted current description** before durable private preparation or Codex handoff. Approved-claim routing and the block on actual Codex execution remain as documented.
-- Gmail/account connection and text-only Discord delivery require a separate authorized test. PDF attachments use only the local fixture transport. Real uploads are disabled regardless of destination approval.
+- Gmail/account connection and text-only Discord delivery require a separate authorized test. For the original alert/manual-paste flow, PDF attachments use only the local fixture transport and real uploads remain disabled. The separate default-OFF [public capture flow](linkedin-public.md) can authorize exact public-work PDFs; this task exercises only mocks.
 - Attachment visual approval binds an exact hash; current job/version/eligibility are rechecked and fixture bytes bind to the stored thread. Fixture receipts are local evidence, never proof of a live send.
 
-For the `linkedin-attach` command, fixture transport revalidates captured bytes and current eligibility. Real transport refuses before loading bytes or making a request. Validation failures remain persisted; uncertain fixture sends must reconcile before another write.
+For the `linkedin-attach` command, fixture transport revalidates captured bytes and current eligibility. The default real transport refuses before loading bytes or making a request. The scoped public exception requires explicit configuration plus current public-description/work/thread/hash/visual authorization and source gates. Validation failures remain persisted; uncertain fixture sends must reconcile before another write.
 
 In delivery recovery, a failed initial thread lookup or fit/fixture-PDF preflight does not imply an unknown write. Existing uncertain attempts retain their reconciliation requirement. GET retries, POST uncertainty and terminal permission blocks retain the runbook's rules.
 
-For a separately authorized text-only live destination, the remaining permission list is: view channel, read history, send messages, create public threads and send in threads. The runbook's attachment permission is unnecessary for this rollout and never enables real PDF uploads. Keep its destination authorization and environment credential requirements; no live send is authorized by this addendum.
+For a separately authorized text-only live destination, the remaining permission list is: view channel, read history, send messages, create public threads and send in threads. The runbook's attachment permission is unnecessary for this rollout and never enables real PDF uploads for the original flow. The scoped public capability separately requires attachment permission and its explicit config flag; it remains unverified live. Keep its destination authorization and environment credential requirements; no live send is authorized by this addendum.
+
+## Signed-out public source extension
+
+The explicitly enabled `linkedin_public` source is separate from the still-disabled zero-budget LinkedIn browser/Indeed routes. Its [operator guide](linkedin-public.md) governs no-cookie direct HTTPS, fixed Toronto/24h search, local URL/ID intake, persisted request budget/pacing/owner/cooldown, date provenance and immutable completeness. It never fabricates operator confirmation or bypasses eligibility/evidence/geometry/visual gates.
+
+The public guide owns the [delivery opt-in contract](linkedin-public.md#description-résumé-and-delivery-admission) and [spent live-session boundary](linkedin-public.md#observed-live-boundary-2026-11-12). Follow those restrictions alongside this runbook; no live delivery or approved real profile is implied. The original runbook bytes and all privacy approvals remain unchanged.
+
+For backwards compatibility, the existing `source-gate` default/global/legacy metadata response lists its original two zero-budget sources. Inspect the new source through `linkedin-public-state` / `linkedin-public-configure`; an explicit public-source setter also returns the full controls. The underlying global kill still applies to public capture.

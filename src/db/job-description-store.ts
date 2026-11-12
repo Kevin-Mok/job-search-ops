@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { publicDescriptionText, publicRenderedMarkup, type PublicPosting } from '../core/linkedin-public.js';
 import type Database from 'better-sqlite3';
 import type { JobLeadRecord } from '../core/types.js';
 import { postingVersion } from '../core/job-workflow.js';
@@ -9,7 +10,7 @@ export interface ManualDescriptionInput {
   postingFingerprint: string; capturedAt: string; body: string; requirements: string[];
   fullDescriptionConfirmed: boolean; byteCutoff: boolean;
 }
-export interface DescriptionVersion extends ManualDescriptionInput, DescriptionDecision { versionId: string; provenance: 'local_manual_paste' }
+export interface DescriptionVersion extends ManualDescriptionInput, DescriptionDecision { versionId: string; provenance: 'local_manual_paste' | 'linkedin_public'; sourceHtml?: string; datePosted?: string | null; dateProvenance?: PublicPosting['dateProvenance'] }
 const fingerprint = (lead: JobLeadRecord) => postingVersion({ ...lead, descriptionVersion: undefined });
 export class JobDescriptionStore {
   constructor(private readonly db: Database.Database, private readonly lead: (id: string) => JobLeadRecord | undefined) {
@@ -25,7 +26,7 @@ export class JobDescriptionStore {
   private decode(json: string): DescriptionVersion {
     const row = JSON.parse(json) as DescriptionVersion;
     const { versionId, ...content } = row;
-    if (crypto.createHash('sha256').update(JSON.stringify(content)).digest('hex') !== versionId || row.provenance !== 'local_manual_paste') throw new Error('Corrupt description provenance; preserve the database and recapture locally.');
+    if (crypto.createHash('sha256').update(JSON.stringify(content)).digest('hex') !== versionId || !['local_manual_paste', 'linkedin_public'].includes(row.provenance)) throw new Error('Corrupt description provenance; preserve the database and recapture locally.');
     return row;
   }
   template(id: string): ManualDescriptionInput {
@@ -60,6 +61,23 @@ export class JobDescriptionStore {
       return record;
     })();
   }
+  capturePublic(leadId: string, input: PublicPosting): DescriptionVersion {
+    return this.db.transaction(() => {
+      const template = this.template(leadId);
+      if (input.source !== 'linkedin_public' || input.url !== template.sourceURL || input.title !== template.title && input.title !== '' || input.company !== template.company && input.company !== '' || input.location !== template.location && input.location !== '' || typeof input.descriptionHtml !== 'string' || typeof input.description !== 'string' || input.description.length > 128*1024 || publicDescriptionText(input.descriptionHtml) !== input.description || !Number.isFinite(Date.parse(input.capturedAt)) || Date.parse(input.capturedAt) > Date.now()+60_000) throw new Error('Public description identity/provenance mismatch.');
+      const decision = classifyDescription({ text: publicRenderedMarkup(input.descriptionHtml), format: 'html', source: 'linkedin', byteCutoff: input.byteCutoff });
+      // Public capture never claims an operator confirmed it. More conservative parser holds win.
+      const content = { ...template, capturedAt: input.capturedAt, body: input.description, requirements: [], fullDescriptionConfirmed: false, byteCutoff: input.byteCutoff,
+        ...(decision.status === 'complete' && !['complete','complete_operator_confirmed'].includes(input.completeness.status) ? input.completeness : decision), provenance: 'linkedin_public' as const,
+        sourceHtml: input.descriptionHtml, datePosted: input.datePosted, dateProvenance: input.dateProvenance };
+      const versionId = crypto.createHash('sha256').update(JSON.stringify(content)).digest('hex');
+      const record = { ...content, versionId };
+      this.db.prepare('INSERT OR IGNORE INTO job_description_versions VALUES (?, ?, ?)').run(versionId,leadId,JSON.stringify(record));
+      const latest = this.history(leadId).at(-1);
+      if (latest?.versionId === versionId) this.db.prepare('INSERT INTO job_description_current VALUES (?, ?) ON CONFLICT(lead_id) DO UPDATE SET version_id=excluded.version_id').run(leadId,versionId);
+      return record;
+    })();
+  }
   history(id: string): DescriptionVersion[] {
     const rows = this.db.prepare('SELECT record_json FROM job_description_versions WHERE lead_id = ? ORDER BY rowid').all(id) as { record_json: string }[];
     return rows.map(row => this.decode(row.record_json));
@@ -70,7 +88,7 @@ export class JobDescriptionStore {
     if (!row) throw new Error('Description held: alert text is lead/snippet only. Capture and confirm a full local description.');
     if (!lead || row.postingFingerprint !== fingerprint(lead)) throw new Error('Description stale: posting changed; recapture the current full description.');
     if (!['complete', 'complete_operator_confirmed'].includes(row.status)) throw new Error(`Description held: ${row.status}. ${row.reason}`);
-    const decision = classifyDescription({ text: row.body, format: 'text', source: row.source, operatorConfirmed: row.fullDescriptionConfirmed, byteCutoff: row.byteCutoff });
+    const decision = classifyDescription({ text: row.provenance === 'linkedin_public' ? publicRenderedMarkup(row.sourceHtml ?? '') : row.body, format: row.provenance === 'linkedin_public' ? 'html' : 'text', source: row.source, operatorConfirmed: row.fullDescriptionConfirmed, byteCutoff: row.byteCutoff });
     if (!['complete', 'complete_operator_confirmed'].includes(decision.status)) throw new Error(`Description held: ${decision.status}. ${decision.reason}`);
     return row;
   }

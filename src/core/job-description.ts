@@ -20,7 +20,7 @@ export function classifyDescription(input: { text: string; format: 'text' | 'htm
     const marker = input.source === 'linkedin' ? /class\s*=\s*["'][^"']*show-more-less-html__markup[^"']*["']/i : input.source === 'indeed' ? /id\s*=\s*["']jobDescriptionText["']/i : /$a/;
     const container = raw.match(/<(section|div)\b([^>]*)>([\s\S]*?)<\/\1>/gi)?.find(chunk => marker.test(chunk));
     if (!container || !/requirements|qualifications/i.test(container) || !/responsibilities|about the role/i.test(container) || container.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().length < 120) return result('layout_unknown', 'Unrecognized or incomplete description layout; review and paste plain full text.');
-    return result('complete', 'Recognized synthetic detail layout with body and requirements.');
+    return result('complete', 'Recognized detail layout with body and requirements.');
   }
   if (/<\/?[a-z][^>]*>/i.test(raw)) return result('layout_unknown', 'Manual capture requires plain description text; unknown HTML cannot be operator-confirmed.');
   if (text.length < 120 || !/requirements|qualifications/i.test(text) || !/responsibilities|about the role/i.test(text)) return result('layout_unknown', 'Full body, responsibilities and requirements could not be established.');

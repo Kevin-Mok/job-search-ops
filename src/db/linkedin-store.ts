@@ -3,7 +3,7 @@ import type Database from "better-sqlite3";
 import type { LinkedInDeliveryRecord, LinkedInMessageRecord, LinkedInIntakeHold } from "../core/types.js";
 
 export class LinkedInStore {
-  constructor(private readonly db: Database.Database) {
+  constructor(private readonly db: Database.Database, private readonly admitted: (leadId: string) => boolean = () => true) {
     db.exec(`
       CREATE TABLE IF NOT EXISTS linkedin_intake_holds (
         message_id TEXT NOT NULL, version TEXT NOT NULL, record_json TEXT NOT NULL,
@@ -72,6 +72,7 @@ export class LinkedInStore {
   }
 
   queue(target: string, leadId: string, held: boolean, now: string): void {
+    held = held || !this.admitted(leadId);
     const key = crypto.createHash("sha256").update(`${target}|${leadId}`).digest("hex").slice(0, 24);
     const row: LinkedInDeliveryRecord = {
       target, leadId, key, status: held ? "held" : "pending", attempts: 0, updatedAt: now,
@@ -120,7 +121,7 @@ export class LinkedInStore {
   claim(target: string, leadId: string, now: Date): LinkedInDeliveryRecord | undefined {
     return this.db.transaction(() => {
       const row = this.listDeliveries(target).find(entry => entry.leadId === leadId);
-      if (!row || ["delivered", "held", "blocked"].includes(row.status)) return;
+      if (!row || ["delivered", "held", "blocked"].includes(row.status) || !this.admitted(leadId)) return;
       if (row.retryAt && Date.parse(row.retryAt) > now.getTime()) return;
       if (row.status === "sending" && row.leaseUntil && Date.parse(row.leaseUntil) > now.getTime()) return;
       const prior = row.status;
