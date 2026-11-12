@@ -35,9 +35,7 @@ The [LinkedIn workflow](docs/linkedin-workflow.md), with its [current correction
 
 The public source has an [atomic implementation/verification plan](plans/linkedin-public-toronto-poc.md) and a fully offline executable proof in `scripts/linkedin-public-demo.mjs`. It reuses approved evidence, explicit eligibility, CMU one-page geometry and existing per-posting thread/PDF receipts. Real descriptions/profile/PDF outputs remain private; there are no live Discord/Gmail sends in this task. The standalone MVP is reference material, not an integration dependency or independent proof of this implementation.
 
-Live checkpoint (2026-11-12): the single permitted public session made two HTTP200 requests with15.589s between recorded starts, discovered10 IDs and attempted one detail. The challenge classifier stopped it before any capture: **0 descriptions, 0 posting dates, no real résumé proof**. This is classifier evidence, not independent proof of provider blocking. Cooldown persists for Kevin-only review, and the live exception is spent, including during validation/CI. The approved real profile is absent; synthetic geometry/mock-delivery proof does not close M3/M5 or privacy ownership.
-
-A subsequent offline counterfactual proved that incidental non-rendered script/style/telemetry could falsely trigger the original public page guard. The source boundary now excludes that metadata while retaining visible/structural challenge and authentication stops and immutable historical holds. The unavailable live response's trigger remains unknown; its cooldown and spent-session limit are unchanged.
+The public guide owns the [observed live boundary](docs/linkedin-public.md#observed-live-boundary-2026-11-12) and [subsequent synthetic classification correction](docs/linkedin-public.md#public-classification-context-correction). The live exception is spent; no further product requests are authorized during validation/CI.
 
 ## What Is Scaffolded
 
@@ -207,5 +205,5 @@ pnpm watchlist:x-news -- --config config/twitter-news.json --list ai-alpha
 
 - Implemented locally: normalized LinkedIn email → durable initial thread → explained fit → private approved-claim PDF → hash-bound fixture attachment, versioned eligibility and resume work, fixture replay, normalization, dedupe, location policy, resume routing, completeness holds, immutable local description versions, DB state, Discord review projection, disabled Indeed sync, browser-backed X news sync with internal watchlist discovery, and tests.
 - Not live-tested: the new Discord REST adapter and trusted email handoff. Live Gmail watch/history and automatic sender/signature verification, unsupported alert layouts, and actual Codex execution remain gaps. Captured MIME/labeled HTML, local review and safe planning are implemented.
-- Scaffolded but not live-tested end-to-end: Discord bot connectivity, Gmail Pub/Sub watch delivery, live gateway run with external model/provider secrets, and live external acceptance. LinkedIn/Indeed page capture and login are excluded.
+- Scaffolded but not live-tested end-to-end: Discord bot connectivity, Gmail Pub/Sub watch delivery, live gateway run with external model/provider secrets, and live external acceptance. Legacy LinkedIn browser/Indeed capture and automated login remain disabled; the separate signed-out public source follows [its guide](docs/linkedin-public.md).
 - Deferred intentionally: auto-apply flows, employer ATS adapters/broker and matching/requirement-map work in later PRs, multi-tenant abstractions.

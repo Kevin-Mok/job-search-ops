@@ -70,7 +70,7 @@ The single allowed capture session is **spent**. It discovered10 IDs, made2 HTTP
 
 This task must make no further LinkedIn requests during implementation, review, tests or CI. Use saved private receipts and synthetic HTML only. Do not choose a fresh database/run/session to continue. Do not weaken the classifier or clear real state to manufacture live coverage. A later real capture is Kevin's separate owner decision.
 
-Final offline verification passed923tests across36files, zero skips, with a fresh TypeScript build. The synthetic executable proof retains2threads/2fit notes/2matching CMU PDFs across separate-process replay. Both one-page Letter previews were inspected; bottom whitespace55.465pt, with no visible clipping. These synthetic pages do not establish real candidate quality. Approved real profile/evidence was not supplied, no real résumé was generated, and real description/date/resume acceptance remains unverified. Discord/Gmail product calls remain0; M3/M5/privacy decisions remain with Kevin.
+See the [implementation plan](../plans/linkedin-public-toronto-poc.md) for dated offline verification and subsequent review-regression results. The synthetic executable proof retains2threads/2fit notes/2matching CMU PDFs across separate-process replay. Both one-page Letter previews were inspected; bottom whitespace55.465pt, with no visible clipping. These synthetic pages do not establish real candidate quality. Approved real profile/evidence was not supplied, no real résumé was generated, and real description/date/resume acceptance remains unverified. Discord/Gmail product calls remain0; M3/M5/privacy decisions remain with Kevin.
 
 
 ## Public classification context correction
