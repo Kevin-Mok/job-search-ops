@@ -1,3 +1,4 @@
+import { runPublicCli, publicDeliveryEnabled } from "./core/linkedin-public-cli.js";
 import path from "node:path";
 import fs from "node:fs";
 import crypto from "node:crypto";
@@ -9,7 +10,7 @@ import { parseTrustedGmailLinkedIn, type TrustedGmailContext } from "./core/gmai
 import { handleJobReviewAction } from "./discord/review-actions.js";
 import { planCodexResumeDispatch } from "./core/codex-resume-dispatch.js";
 import { ingestLinkedInEmail, drainLinkedInAlerts } from "./core/linkedin-route.js";
-import { attachLinkedInResume, postingVersion, processLinkedInWork, queueLinkedInWork, type JobEligibility } from "./core/job-workflow.js";
+import { attachLinkedInResume, authorizeLinkedInInitialDelivery, authorizePublicResumeDelivery, postingVersion, processLinkedInWork, queueLinkedInWork, type JobEligibility } from "./core/job-workflow.js";
 import { createDiscordLinkedInTransport, createFixtureLinkedInTransport } from "./discord/linkedin-transport.js";
 import type { ResumeCandidate } from "./core/job-resume.js";
 import { generateDraftPacket } from "./core/drafting.js";
@@ -193,12 +194,15 @@ function readPrivateJson(file: string): unknown {
   try { return JSON.parse(fs.readFileSync(file, "utf8")) as unknown; }
   catch { throw new Error("Could not read a valid private JSON input; check its path and format."); }
 }
-function linkedInTransport(values: CliValues) {
-  if (values.transport === "fixture") return createFixtureLinkedInTransport(path.resolve(requiredArg(values, "journal")));
+function linkedInTransport(values: CliValues, store: JobStore) {
+  if (values.transport === "fixture") return createFixtureLinkedInTransport(path.resolve(requiredArg(values, "journal")), { authorizeInitial: input => authorizeLinkedInInitialDelivery(store,input) });
   if (values.transport !== "discord") throw new Error("--transport must be fixture or discord; no live destination is selected by default.");
   if (values.fixture) throw new Error("Fixture intake cannot select a live Discord transport.");
   if (!values["authorized-test-destination"]) throw new Error("Live sends require --authorized-test-destination and an explicitly selected private --channel-id.");
-  return createDiscordLinkedInTransport({ channelId: requiredArg(values, "channel-id"), token: process.env.JOB_OPS_DISCORD_BOT_TOKEN ?? "" });
+  return createDiscordLinkedInTransport({ channelId: requiredArg(values, "channel-id"), token: process.env.JOB_OPS_DISCORD_BOT_TOKEN ?? "", linkedinPublicPdfDelivery: deliveryFlag(values), authorizeInitial: input => authorizeLinkedInInitialDelivery(store,input), authorizePublicPdf: input => authorizePublicResumeDelivery(store,input) });
+}
+function deliveryFlag(values: CliValues): boolean {
+  return values.config ? publicDeliveryEnabled(readPrivateJson(String(values.config))) : false;
 }
 async function withProgress<T>(label: string, values: CliValues, action: () => Promise<T>): Promise<T> {
   const started = Date.now();
@@ -220,16 +224,22 @@ function privateDirectory(values: CliValues, dbPath: string): string {
 async function main(): Promise<void> {
   const [command, ...rest] = process.argv.slice(2);
   const cleanedRest = rest.filter((entry, index) => !(entry === "--" && index === 0));
+  if (command?.startsWith('linkedin-public-')) return runPublicCli(command,cleanedRest);
   const parsed = readCommonArgs(cleanedRest);
   if (command === "help") {
     print({ commands: {
+      "linkedin-public-capture": "--db PRIVATE_PATH --mode search|urls --run-id STABLE_ID [URL_OR_ID ... | --input LOCAL_ID_FILE] [--dry-run]; 15s / max25 requests / max10 postings; no accounts/cookies/proxies",
+      "linkedin-public-configure": "--db PRIVATE_PATH --enabled true|false --budget 0..25; persisted kills and cooldown stay unchanged",
+      "linkedin-public-state": "--db PRIVATE_PATH; safe persisted source controls",
+      "linkedin-public-cooldown-clear": "KEVIN ONLY: --db PRIVATE_PATH --operator Kevin --reason EXPLICIT_DECISION; no automatic expiry",
+      "public PDF opt-in": "--config PRIVATE_JSON containing linkedinPublicPdfDelivery:true on deliver/work/attach; default OFF; applies only to accepted public capture flow",
       "gmail-intake": "--db PATH --email-file CAPTURE_JSON --trusted-context VERIFIED_CONTEXT_JSON --verified-handoff --transport fixture --journal PRIVATE_JSON; parsed or durable held result",
       "discord-review": "--db PATH --interaction-file CAPTURE_JSON --review-config ALLOWLIST_JSON --verified-handoff; no outgoing send",
       "codex-resume-plan": "--db PATH --work-id ID --private-dir DIR; writes immutable private plan, actual CLI execution blocked",
       "description-template": "--db PATH --lead-id ID --output PRIVATE_JSON; creates prefilled local paste review file, never overwrites",
       "description-capture": "--db PATH --input PRIVATE_JSON; explicit fullDescriptionConfirmed required; immutable versions and holds",
       "description-state": "--db PATH --lead-id ID; history metadata (body remains local)",
-      "source-gate": "--db PATH [--source global|linkedin|indeed --killed true|false]; kills persist; LinkedIn/Indeed budgets stay zero",
+      "source-gate": "--db PATH [--source global|linkedin|indeed|linkedin_public --killed true|false]; kills persist; LinkedIn/Indeed budgets stay zero",
       "linkedin-intake": "--db PATH --email-file JSON --fixture --transport fixture --journal PRIVATE_JSON (or trusted --verified-handoff with an explicitly authorized discord destination)",
       "linkedin-deliver": "--db PATH --transport fixture --journal PRIVATE_JSON; retries durable initial delivery only",
       "linkedin-state": "--db PATH; lists messages, initial deliveries and versioned work",
@@ -241,7 +251,7 @@ async function main(): Promise<void> {
     } });
     return;
   }
-  const store = new JobStore(resolveDbPath(parsed.values.db));
+  const store = new JobStore(resolveDbPath(parsed.values.db), { linkedinPublicPdfDelivery: ["linkedin-deliver","linkedin-work","linkedin-attach","linkedin-intake","gmail-intake"].includes(command) ? deliveryFlag(parsed.values) : false });
 
   switch (command) {
     case "gmail-intake": {
@@ -255,7 +265,7 @@ async function main(): Promise<void> {
         store.linkedin.holdIntake({ messageId: parsedEmail.messageId ?? `unknown-${version}`, version, capturePath, reasons: parsedEmail.reasons });
         print(parsedEmail); return;
       }
-      const transport = linkedInTransport(parsed.values);
+      const transport = linkedInTransport(parsed.values, store);
       const intake = ingestLinkedInEmail(store, parsedEmail.email, { verifiedHandoff: true });
       store.linkedin.resolveIntake(parsedEmail.email.messageId, version);
       const delivery = await withProgress("Delivering verified captured Gmail jobs", parsed.values, () => drainLinkedInAlerts({ store, transport }));
@@ -276,14 +286,14 @@ async function main(): Promise<void> {
       print({ workId: plan.binding.workId, dispatchId: plan.dispatchId, execution: plan.execution, planPath, receiptPath: plan.receiptPath }); return;
     }
     case "linkedin-intake": {
-      const transport = linkedInTransport(parsed.values);
+      const transport = linkedInTransport(parsed.values, store);
       const intake = ingestLinkedInEmail(store, readPrivateJson(requiredArg(parsed.values, "email-file")), { fixture: parsed.values.fixture === true, verifiedHandoff: parsed.values["verified-handoff"] === true });
       const delivery = await withProgress("Delivering LinkedIn initial alerts", parsed.values, () => drainLinkedInAlerts({ store, transport }));
       print({ intake, delivery, work: queueLinkedInWork(store, transport.target) });
       return;
     }
     case "linkedin-deliver": {
-      const transport = linkedInTransport(parsed.values);
+      const transport = linkedInTransport(parsed.values, store);
       print(await withProgress("Reconciling LinkedIn deliveries", parsed.values, () => drainLinkedInAlerts({ store, transport })));
       queueLinkedInWork(store, transport.target);
       return;
@@ -301,13 +311,13 @@ async function main(): Promise<void> {
       const stat = fs.lstatSync(file);
       if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 256 * 1024) throw new Error("Description input must be a bounded local regular JSON file (max 256 KiB); no byte truncation is performed.");
       const row = store.descriptions.capture(readPrivateJson(file) as import("./db/job-description-store.js").ManualDescriptionInput);
-      const { body: _body, requirements: _requirements, ...metadata } = row;
+      const { body: _body, sourceHtml: _html, requirements: _requirements, ...metadata } = row;
       print(metadata);
       return;
     }
     case "description-state": {
       const lead = requireLead(store, getLeadId(parsed.values));
-      print({ currentVersion: store.descriptions.current(lead.leadId)?.versionId, versions: store.descriptions.history(lead.leadId).map(({ body: _body, requirements: _requirements, ...metadata }) => metadata) });
+      print({ currentVersion: store.descriptions.current(lead.leadId)?.versionId, versions: store.descriptions.history(lead.leadId).map(({ body: _body, sourceHtml: _html, requirements: _requirements, ...metadata }) => metadata) });
       return;
     }
     case "source-gate": {
@@ -316,7 +326,9 @@ async function main(): Promise<void> {
         if (!["true", "false"].includes(killed)) throw new Error("--killed must be true or false.");
         store.sources.setKill(requiredArg(parsed.values, "source"), killed === "true");
       }
-      print(store.sources.state());
+      const state = store.sources.state();
+      // Preserve the existing two-source metadata contract; the new public-state CLI exposes all controls.
+      print(parsed.values.source === 'linkedin_public' ? state : { globalKilled: state.globalKilled, sources: { linkedin: state.sources.linkedin, indeed: state.sources.indeed } });
       return;
     }
     case "linkedin-state": {
@@ -335,17 +347,17 @@ async function main(): Promise<void> {
       return;
     }
     case "linkedin-work": {
-      const transport = linkedInTransport(parsed.values);
+      const transport = linkedInTransport(parsed.values, store);
       const candidate = parsed.values.candidate ? readPrivateJson(String(parsed.values.candidate)) as ResumeCandidate : undefined;
       const evidence = parsed.values.evidence ? readPrivateJson(String(parsed.values.evidence)) : undefined;
       const portfolioRoot = parsed.values.render ? path.resolve(requiredArg(parsed.values, "portfolio-root")) : undefined;
-      print(await withProgress("Processing every eligible job", parsed.values, () => processLinkedInWork({ store, transport, privateDir: privateDirectory(parsed.values, store.dbPath), candidate, evidence, portfolioRoot })));
+      print(await withProgress("Processing every eligible job", parsed.values, () => processLinkedInWork({ store, transport, privateDir: privateDirectory(parsed.values, store.dbPath), candidate, evidence, portfolioRoot, linkedinPublicPdfDelivery: deliveryFlag(parsed.values) })));
       return;
     }
     case "linkedin-attach": {
       if (!parsed.values["approve-visual"]) throw new Error("Inspect the exact pending PNG, then pass --approve-visual with its PDF --sha256.");
-      const transport = linkedInTransport(parsed.values);
-      print(await withProgress("Validating and attaching exact resume bytes", parsed.values, () => attachLinkedInResume({ store, transport, workId: requiredArg(parsed.values, "work-id"), approvedSha256: requiredArg(parsed.values, "sha256"), portfolioRoot: path.resolve(requiredArg(parsed.values, "portfolio-root")) })));
+      const transport = linkedInTransport(parsed.values, store);
+      print(await withProgress("Validating and attaching exact resume bytes", parsed.values, () => attachLinkedInResume({ store, transport, workId: requiredArg(parsed.values, "work-id"), approvedSha256: requiredArg(parsed.values, "sha256"), portfolioRoot: path.resolve(requiredArg(parsed.values, "portfolio-root")), linkedinPublicPdfDelivery: deliveryFlag(parsed.values) })));
       return;
     }
     case "replay-fixtures": {

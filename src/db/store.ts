@@ -208,14 +208,22 @@ export class JobStore {
   readonly descriptions: JobDescriptionStore;
   readonly sources: SourceGateStore;
 
-  constructor(public readonly dbPath: string) {
+  constructor(public readonly dbPath: string, readonly deliveryConfig: { linkedinPublicPdfDelivery?: boolean } = {}) {
     ensureDirectory(dbPath);
     this.db = new Database(dbPath);
     this.initialize();
-    this.linkedin = new LinkedInStore(this.db);
+    this.linkedin = new LinkedInStore(this.db, id => { try { this.assertLinkedInDelivery(id); return true; } catch { return false; } });
     this.work = new JobWorkStore(this.db);
     this.descriptions = new JobDescriptionStore(this.db, id => this.getLead(id));
     this.sources = new SourceGateStore(this.db);
+  }
+
+  assertLinkedInDelivery(leadId: string): void {
+    const lead = this.getLead(leadId);
+    if (lead?.sourceFixture !== 'private:linkedin_public') return;
+    if (this.deliveryConfig.linkedinPublicPdfDelivery !== true) throw new Error('Public handoff flag is disabled.');
+    this.sources.assertPublic();
+    this.descriptions.accepted(leadId);
   }
 
   private initialize(): void {

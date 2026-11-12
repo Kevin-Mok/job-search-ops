@@ -72,6 +72,9 @@ function assertCurrentWork(store: JobStore, work: JobWorkRecord): JobLeadRecord 
   if (work.eligibility !== "eligible" || lead.locationDecision !== "accepted") throw new WorkAdmissionError("Explicit current eligibility approval is required before enrichment.");
   const description = store.descriptions.accepted(lead.leadId);
   if (work.descriptionVersion !== description.versionId) throw new WorkAdmissionError("Description version changed; prepare the latest accepted version.");
+  if (description.provenance === 'linkedin_public') {
+    try { store.sources.assertPublic(); } catch (error) { throw new WorkAdmissionError(error instanceof Error ? error.message : 'Public source admission held.'); }
+  }
   return { ...lead, normalizedDescription: description.body };
 }
 
@@ -157,7 +160,7 @@ function savePrivateJson(file: string, value: unknown): void {
 
 export async function processLinkedInWork(params: {
   store: JobStore; transport: LinkedInTransport; privateDir: string;
-  evidence?: unknown; candidate?: ResumeCandidate; portfolioRoot?: string;
+  evidence?: unknown; candidate?: ResumeCandidate; portfolioRoot?: string; linkedinPublicPdfDelivery?: boolean;
 }): Promise<JobWorkRecord[]> {
   const { store, transport } = params;
   queueLinkedInWork(store, transport.target);
@@ -167,6 +170,7 @@ export async function processLinkedInWork(params: {
     if (!work) continue;
     try {
       const lead = assertCurrentWork(store, work);
+      if (store.descriptions.accepted(work.leadId).provenance === 'linkedin_public' && params.linkedinPublicPdfDelivery !== true) throw new Error('Public handoff flag is disabled.');
       if (!work.threadId) throw new Error("Initial alert/thread is not delivered; resume work remains queued.");
       if (!params.evidence || !params.candidate) throw new Error("Approved private evidence and candidate input are required; every eligible job remains durable.");
       const evidence = validateApprovedFitEvidence(params.evidence);
@@ -183,6 +187,12 @@ export async function processLinkedInWork(params: {
         await deliver({ store, work, stage: "fitDelivery", key, transport, send: async () => {
           if (!transport.sendThreadMessage) throw new DiscordRouteError("Transport cannot deliver fit messages.", "blocked");
           const content = [
+            ...(store.descriptions.accepted(work.leadId).provenance === 'linkedin_public' ? [
+              `Posting: ${lead.title.slice(0, 120)} @ ${lead.company.slice(0, 120)}`,
+              `Location: ${lead.locationRaw.slice(0, 120)}`,
+              `URL: ${lead.canonicalUrl}`,
+              `Summary: ${lead.normalizedDescription.replace(/\s+/g, ' ').slice(0, 350)}`
+            ] : []),
             `📊 Fit ${fit.score}/10 | confidence ${fit.confidence}`,
             fit.explanation,
             `Posting version: ${fit.postingVersion}`,
@@ -240,13 +250,16 @@ export async function processLinkedInWork(params: {
 }
 
 export async function attachLinkedInResume(params: {
-  store: JobStore; transport: LinkedInTransport; workId: string; approvedSha256: string; portfolioRoot: string;
+  store: JobStore; transport: LinkedInTransport; workId: string; approvedSha256: string; portfolioRoot: string; linkedinPublicPdfDelivery?: boolean;
 }): Promise<JobWorkRecord> {
   const { store, transport } = params;
   const work = store.work.claim(params.workId);
   if (!work) throw new Error("Resume work is missing or leased by another worker.");
   try {
     assertCurrentWork(store, work);
+    const publicDescription = store.descriptions.accepted(work.leadId).provenance === 'linkedin_public';
+    if (publicDescription && params.linkedinPublicPdfDelivery !== true) throw new Error('Public PDF handoff flag must be explicitly enabled.');
+    if (transport.attachmentPolicy === 'linkedin_public' && !publicDescription) throw new Error('Opt-in transport accepts only the public capture flow.');
     if (transport.attachmentPolicy === "disabled") throw new Error("Real resume PDF uploads are disabled; retain the local artifact reference. No resume bytes are passed to the real transport.");
     if (work.target !== transport.target || !work.threadId || !work.artifact || !work.preparedPath) throw new Error("Resume work has no bound artifact/thread for this target.");
     if (params.approvedSha256 !== work.artifact.sha256) throw new Error("Visual approval must name the exact pending PDF SHA-256.");
@@ -274,7 +287,7 @@ export async function attachLinkedInResume(params: {
         if (!transport.sendAttachment) throw new DiscordRouteError("Transport cannot attach PDF files.", "blocked");
         const beforeSend = () => { assertCurrentWork(store, work); };
         beforeSend();
-        return transport.sendAttachment({ threadId: work.threadId!, key, filename, bytes: artifact.bytes, sha256: artifact.sha256, beforeSend });
+        return transport.sendAttachment({ threadId: work.threadId!, key, filename, bytes: artifact.bytes, sha256: artifact.sha256, beforeSend, ...(publicDescription ? { publicDescriptionVersion: work.descriptionVersion } : {}) });
       }
     });
     assertCurrentWork(store, work);
@@ -289,4 +302,20 @@ export async function attachLinkedInResume(params: {
     work.updatedAt = new Date().toISOString();
     store.work.save(work);
   }
+}
+
+/** Scoped real-transport authorization, rechecked immediately before each upload. */
+export function authorizePublicResumeDelivery(store: JobStore, input: { threadId: string; sha256: string; descriptionVersion: string }): void {
+  try { store.sources.assertPublic(); } catch (error) { throw new WorkAdmissionError(error instanceof Error ? error.message : 'Public source admission held.'); }
+  const matches = store.work.list().filter(work => work.threadId === input.threadId && work.artifact?.sha256 === input.sha256 && work.descriptionVersion === input.descriptionVersion);
+  if (matches.length !== 1) throw new Error('Public PDF authorization requires one exact posting/thread/artifact binding.');
+  const work = matches[0];
+  assertCurrentWork(store,work);
+  if (store.descriptions.accepted(work.leadId).provenance !== 'linkedin_public' || work.visualApproval?.sha256 !== input.sha256 || work.fitDelivery?.status !== 'delivered') throw new Error('Public PDF requires accepted public provenance, exact visual approval and delivered fit notes.');
+}
+
+export function authorizeLinkedInInitialDelivery(store: JobStore, input: { target: string; key?: string; messageId?: string }): void {
+  const matches = store.linkedin.listDeliveries(input.target).filter(row => input.key ? row.key === input.key : input.messageId && row.messageId === input.messageId);
+  if (matches.length !== 1) throw new Error('Initial delivery requires one persisted posting/destination binding.');
+  store.assertLinkedInDelivery(matches[0].leadId);
 }

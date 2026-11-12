@@ -14,7 +14,7 @@ The POC is intentionally fixture-first. It can ingest replayable Indeed and Link
 | Vitest | Synthetic regression coverage for ingestion, recovery and operator actions |
 | Chrome / Poppler / portfolio CMU assets | Private job-specific PDF drafts using existing fonts, layout checks and exact-byte validation |
 
-The [LinkedIn workflow](docs/linkedin-workflow.md), with its [current corrections](docs/linkedin-workflow-addendum.md), connects normalized email intake, stable threads, evidence-backed fit, prepared work for eligible jobs with accepted descriptions, and exact PDF attachment through a local fixture transport. Real mailbox/text-only Discord delivery remains a separate authorized test gate; PDF uploads are disabled. Read the addendum alongside the runbook: its corrections take precedence for description acceptance and delivery; the runbook retains its exact approved bytes.
+The [LinkedIn workflow](docs/linkedin-workflow.md), with its [current corrections](docs/linkedin-workflow-addendum.md), connects normalized email intake, stable threads, evidence-backed fit, prepared work for eligible jobs with accepted descriptions, and exact PDF attachment through a local fixture transport. Real mailbox/Discord delivery remains a separate authorized test gate. The default real PDF refusal remains; only the explicitly configured [signed-out public flow](docs/linkedin-public.md) has a scoped attachment capability, exercised with mocks only. Read the addendum alongside the runbook: its corrections take precedence for description acceptance and delivery; the runbook retains its exact approved bytes.
 
 ## What Is Implemented
 
@@ -24,13 +24,20 @@ The [LinkedIn workflow](docs/linkedin-workflow.md), with its [current correction
 - Example Indeed alert config in [`config/indeed-alerts.example.json`](/home/kevin/coding/openclaw/config/indeed-alerts.example.json)
 - Example X news config in [`config/twitter-news.example.json`](/home/kevin/coding/openclaw/config/twitter-news.example.json)
 - Fixture-driven ingest pipeline and SQLite persistence under [`src/`](/home/kevin/coding/openclaw/src)
-- Persisted global/per-source job-source kill switches, with LinkedIn/Indeed automated budgets fixed at zero; the existing Indeed sync and direct browser adapter refuse before browser/login/request activity
+- Opt-in [LinkedIn public Toronto capture](docs/linkedin-public.md) and local URL/ID intake, with no cookies/proxies/accounts, persisted 15-second pacing, 25-request cap, Kevin-only cooldown clear and immutable description admission; default source and PDF handoff both disabled
+- Persisted global/per-source job-source kill switches, with legacy LinkedIn browser/Indeed automated budgets fixed at zero; the existing Indeed sync and direct browser adapter refuse before browser/login/request activity
 - Browser-backed X news sync path with authenticated following/timeline scraping, internal watchlist discovery, sync-run audit records, and Discord delivery suppression
 - Trusted captured Gmail JSON/MIME parsing with durable holds, normalized LinkedIn handoff with transactional versions, conservative posting-URL identity and durable thread/retry reconciliation
 - Allowlisted same-thread Discord review handoff with transactional cross-process replay admission and operator provenance; immutable Codex dispatch planning with real execution blocked pending isolation
 - Evidence-backed 1–10 fit, explicit versioned eligibility, optional complete canonical resume profiles with approved bullet routing, CMU PDF checks and hash-bound same-thread fixture attachment
 - Canonical Letter print context with same-content PDF geometry regression and [representative synthetic resume inputs](fixtures/resume/) for public layout review; sparse default demos do not prove page-fill parity
 - Critical workflow tests under [`tests/`](/home/kevin/coding/openclaw/tests)
+
+The public source has an [atomic implementation/verification plan](plans/linkedin-public-toronto-poc.md) and a fully offline executable proof in `scripts/linkedin-public-demo.mjs`. It reuses approved evidence, explicit eligibility, CMU one-page geometry and existing per-posting thread/PDF receipts. Real descriptions/profile/PDF outputs remain private; there are no live Discord/Gmail sends in this task. The standalone MVP is reference material, not an integration dependency or independent proof of this implementation.
+
+Live checkpoint (2026-11-12): the single permitted public session made two HTTP200 requests with15.589s between recorded starts, discovered10 IDs and attempted one detail. The challenge classifier stopped it before any capture: **0 descriptions, 0 posting dates, no real résumé proof**. This is classifier evidence, not independent proof of provider blocking. Cooldown persists for Kevin-only review, and the live exception is spent, including during validation/CI. The approved real profile is absent; synthetic geometry/mock-delivery proof does not close M3/M5 or privacy ownership.
+
+A subsequent offline counterfactual proved that incidental non-rendered script/style/telemetry could falsely trigger the original public page guard. The source boundary now excludes that metadata while retaining visible/structural challenge and authentication stops and immutable historical holds. The unavailable live response's trigger remains unknown; its cooldown and spent-session limit are unchanged.
 
 ## What Is Scaffolded
 
@@ -95,7 +102,7 @@ openclaw skills list
 
 These `openclaw` commands assume `OPENCLAW_STATE_DIR` and `OPENCLAW_CONFIG_PATH` are already exported for this repo, as shown in [`docs/openclaw-setup.md`](/home/kevin/coding/openclaw/docs/openclaw-setup.md).
 
-LinkedIn/Indeed alerts remain lead sources only. Automated job requests and Indeed search sync are disabled even if legacy alert configuration enables them. Keep real descriptions, candidate data and PDFs local. Real Discord PDF uploads are refused, including old queued work. X news remains a separate existing subsystem with its own configuration; PR1 does not change or exercise live accounts.
+LinkedIn/Indeed alerts remain lead sources only. Legacy LinkedIn browser requests and Indeed search sync are disabled even if old configuration enables them. The separate opt-in public source is documented in [its guide](docs/linkedin-public.md). Keep real descriptions, candidate data and PDFs private. Default real PDF uploads and old queued work remain refused; only the accepted public-capture flow has the explicit, default-OFF delivery exception. X news remains a separate existing subsystem with its own configuration; PR1 does not change or exercise live accounts.
 
 ## LinkedIn Email To Discord Demo
 
@@ -157,7 +164,7 @@ Legacy `draft:packet` refuses unaccepted descriptions and otherwise reports a ho
 
 Use `node dist/src/cli.js description-template --db PRIVATE_DB --lead-id HELD_JOB_ID --output PRIVATE_JSON` to create a prefilled review file. Paste the entire description into `body`, retain the canonical identity/source URL, add any exact requirement quotes to `requirements`, review `capturedAt`, and explicitly set `fullDescriptionConfirmed` to true. Capture with `description-capture --db PRIVATE_DB --input PRIVATE_JSON`; inspect metadata using `description-state --db PRIVATE_DB --lead-id HELD_JOB_ID`. Files stay local; do not attach real inputs to Discord. Run the existing eligibility and approved-evidence `linkedin-work` commands only after acceptance. See the [review runbook](docs/linkedin-workflow.md#local-full-description-review-pr1) and [current acceptance rules](docs/linkedin-workflow-addendum.md#description-history-and-acceptance).
 
-`source-gate --db PRIVATE_DB` shows persisted defaults: global/source killed and budgets zero. `--source global|linkedin|indeed --killed true|false` changes only local product state. Turning kills off never changes LinkedIn/Indeed budget zero. `sync-indeed` refuses before constructing a fetcher or opening a browser. No automated login is permitted.
+`source-gate --db PRIVATE_DB` shows persisted defaults: global/source killed and budgets zero. `--source global|linkedin|indeed --killed true|false` changes only local product state. Turning kills off never changes legacy LinkedIn/Indeed budget zero. The new `linkedin-public-state` interface exposes the separate opt-in public source; the legacy metadata response remains backwards compatible. `sync-indeed` refuses before constructing a fetcher or opening a browser. No automated login is permitted.
 
 Direct X news sync:
 
