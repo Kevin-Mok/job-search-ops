@@ -11,10 +11,10 @@ export function classifyDescription(input: { text: string; format: 'text' | 'htm
   const text = raw.replace(/<[^>]*>/g, ' ').replace(/&hellip;|&#8230;/gi, '…').replace(/\s+/g, ' ').trim();
   const result = (status: DescriptionStatus, reason: string) => ({ status, reason });
   if (/captcha|verify (?:that )?you are human|security challenge|cloudflare|access denied|unusual traffic/i.test(raw)) return result('blocked', 'Challenge/access block detected. Paste a verified employer description locally.');
-  if (/type\s*=\s*["']password|sign[ -]in|log[ -]?in required|log[ -]in to (?:view|continue)|join now|sign up to|join (?:linkedin|indeed) to|authwall|secure\.indeed\.com\/auth/i.test(raw)) return result('needs_login', 'Authentication wall detected; automated login is disabled.');
+  if (/type\s*=\s*["']password|\b(?:sign[ -]in|log[ -]?in required|log[ -]in to (?:view|continue)|join now|sign up to|join (?:linkedin|indeed) to)\b|authwall|secure\.indeed\.com\/auth/i.test(raw)) return result('needs_login', 'Authentication wall detected; automated login is disabled.');
   if (/job (?:is |has )?(?:no longer available|expired|closed)|no longer accepting applications|position (?:has been filled|is closed)/i.test(text)) return result('expired', 'Posting appears expired; review a current employer posting.');
   if (input.byteCutoff || Buffer.byteLength(input.text, 'utf8') >= DESCRIPTION_MAX_BYTES) return result('partial', 'Byte limit/cutoff detected; obtain the entire description.');
-  if (!text || /…|\.{3}|show more|load more|read more|see more|view full (?:job )?description|truncat(?:ed|ion)|job snippet/i.test(text)) return result('partial', 'Missing body or truncation/load-more marker detected; paste the entire description.');
+  if (!text || /…|\.{3}|\b(?:show more|load more|read more|see more|view full (?:job )?description|truncat(?:ed|ion)|job snippet)\b/i.test(text)) return result('partial', 'Missing body or truncation/load-more marker detected; paste the entire description.');
   if (input.format === 'html') {
     if (/<html\b/i.test(raw) && !/<\/html\s*>/i.test(raw)) return result('partial', 'HTML capture ended before its closing document marker.');
     const marker = input.source === 'linkedin' ? /class\s*=\s*["'][^"']*show-more-less-html__markup[^"']*["']/i : input.source === 'indeed' ? /id\s*=\s*["']jobDescriptionText["']/i : /$a/;

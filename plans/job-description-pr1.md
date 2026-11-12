@@ -28,6 +28,12 @@ Initial HEAD equals origin/main 13aae6f4ccd3bc009be675ecef050097813db22f; initia
 
 Conservative classifiers may hold valid prose; operator confirmation never overrides known markers. HTML fixtures classify only; there is no fetcher. Previously persisted work and outputs remain historical and cannot bypass current admission. Rollback code without deleting private ledgers; do not resurrect old upload or automation behavior. No live acceptance is claimed.
 
+### R1 review correction
+
+- [x] Reproduce substring false positives in a separate email-free behavioral test file: `Design intuitive interfaces` returned `needs_login`; `download more datasets` returned `partial`, across both sources and both text/HTML formats.
+- [x] Bound login and truncation prose markers at the shared classifier so capture and persisted-record rechecks use the same correction. Structural authentication indicators, challenge detection, confirmation, provenance and source gates remain unchanged. R2 optional quote input remains unchanged by author decision.
+- [x] Locked dependencies installed with `pnpm install --frozen-lockfile`; `pnpm exec node --version` reported v22.15.0. Intentional RED: 10 failed, 108 passed, including two confirmation checks blocked by the false positive. Focused GREEN: `pnpm exec node node_modules/vitest/vitest.mjs run tests/job-description-markers.test.ts` exited 0 with 118 passed. Genuine login, challenge, expiration and truncation holds remain covered. Full tests/lint, publication and CI belong to the outer executor and were not run in this review phase.
+
 ## Current verification and milestone
 
 - Defining RED logs: red.log (missing new module), red-cli.log (missing executable proof), red-edge-classifier.log (hex-encoded ellipsis classified complete). The latter received entity decoding/document-cutoff/container-body checks; 7 focused cases now pass.
